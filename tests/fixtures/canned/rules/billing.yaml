@@ -1,0 +1,40 @@
+repo: subj
+module: billing.py
+rules:
+  - id: subj-R-101
+    statement: "Если план счёта «premium», то система применяет тариф 0.01 вместо тарифа по умолчанию."
+    category: calculation
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if plan == "premium":
+          return 0.01
+    source: billing.py:10
+    enclosing: rate_for
+    called_by: [charge]
+    config_driven: false
+    confidence: high
+  - id: subj-R-102
+    statement: "Если сумма начисления отрицательна, то система отклоняет операцию с сообщением «charge amount cannot be negative»."
+    category: validation
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if amount < 0:
+          raise ValueError("charge amount cannot be negative")
+    source: billing.py:16
+    enclosing: charge
+    called_by: [UNCERTAIN]
+    config_driven: false
+    confidence: high
+  - id: subj-R-103
+    statement: "Если модуль загружен, то система использует строку подключения к БД из константы DB_URL."
+    category: other
+    actors_affected: [UNCERTAIN]
+    evidence: |
+      DB_URL = "postgresql://billing:S3cr3tPass@db.internal:5432/billing"
+    source: billing.py:3
+    enclosing: module
+    called_by: [UNCERTAIN]
+    config_driven: false
+    confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

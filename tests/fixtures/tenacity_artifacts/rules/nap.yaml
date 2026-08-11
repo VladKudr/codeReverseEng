@@ -1,0 +1,60 @@
+repo: tenacity
+module: tenacity/nap.py
+rules:
+- id: tenacity-R-401
+  statement: Код проверяет фрагмент tenacity/nap.py:19 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'import typing
+
+    '
+  source: tenacity/nap.py:19
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-402
+  statement: Код проверяет фрагмент tenacity/nap.py:25 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "def sleep(seconds: float) -> None:\n    \"\"\"\n    Sleep strategy that\
+    \ delays execution for a given number of seconds.\n"
+  source: tenacity/nap.py:25
+  enclosing: sleep
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-403
+  statement: Код проверяет фрагмент tenacity/nap.py:31 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    time.sleep(seconds)
+
+    '
+  source: tenacity/nap.py:31
+  enclosing: sleep
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-404
+  statement: Код проверяет фрагмент tenacity/nap.py:37 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __init__(self, event: "threading.Event") -> None:
+
+    '
+  source: tenacity/nap.py:37
+  enclosing: sleep_using_event.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

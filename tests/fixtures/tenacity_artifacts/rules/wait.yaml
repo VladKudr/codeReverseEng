@@ -1,0 +1,350 @@
+repo: tenacity
+module: tenacity/wait.py
+rules:
+- id: tenacity-R-301
+  statement: Код проверяет фрагмент tenacity/wait.py:30 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    @abc.abstractmethod\n        pass\n"
+  source: tenacity/wait.py:30
+  enclosing: wait_base.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-302
+  statement: Код проверяет фрагмент tenacity/wait.py:28 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Abstract base class for wait strategies."""
+
+    '
+  source: tenacity/wait.py:28
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-303
+  statement: Код проверяет фрагмент tenacity/wait.py:39 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        if other == 0:  # type: ignore[comparison-overlap]\n        \
+    \    return self\n        return self.__add__(other)\n"
+  source: tenacity/wait.py:39
+  enclosing: wait_base.__radd__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-304
+  statement: Код проверяет фрагмент tenacity/wait.py:52 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __init__(self, wait: _utils.time_unit_type) -> None:
+
+    '
+  source: tenacity/wait.py:52
+  enclosing: wait_fixed.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-305
+  statement: Код проверяет фрагмент tenacity/wait.py:62 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __init__(self) -> None:
+
+    '
+  source: tenacity/wait.py:62
+  enclosing: wait_none.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-306
+  statement: Код проверяет фрагмент tenacity/wait.py:71 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    ) -> None:  # noqa\n        self.wait_random_min = _utils.to_seconds(min)\n\
+    \        self.wait_random_max = _utils.to_seconds(max)\n"
+  source: tenacity/wait.py:71
+  enclosing: wait_random.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-307
+  statement: Код проверяет фрагмент tenacity/wait.py:81 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class wait_combine(wait_base):
+
+    '
+  source: tenacity/wait.py:81
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-308
+  statement: Код проверяет фрагмент tenacity/wait.py:91 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class wait_chain(wait_base):
+
+    '
+  source: tenacity/wait.py:91
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-309
+  statement: Код проверяет фрагмент tenacity/wait.py:101 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                               [wait_fixed(5) for k in range(4)]))\n\
+    \        def wait_chained():\n            print(\"Wait 1s for 3 attempts, 2s for\
+    \ 5 attempts and 5s \"\n"
+  source: tenacity/wait.py:101
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-310
+  statement: Код проверяет фрагмент tenacity/wait.py:110 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def __call__(self, retry_state: \"RetryCallState\") -> float:\n \
+    \       wait_func_no = min(max(retry_state.attempt_number, 1), len(self.strategies))\n\
+    \        wait_func = self.strategies[wait_func_no - 1]\n"
+  source: tenacity/wait.py:110
+  enclosing: wait_chain.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-311
+  statement: Код проверяет фрагмент tenacity/wait.py:119 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    The predicate is passed the exception object. Based on the exception,
+    the
+
+    '
+  source: tenacity/wait.py:119
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-312
+  statement: Код проверяет фрагмент tenacity/wait.py:129 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '                return float(exception.response.headers.get("Retry-After",
+    "1"))
+
+    '
+  source: tenacity/wait.py:129
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-313
+  statement: Код проверяет фрагмент tenacity/wait.py:142 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __init__(self, predicate: typing.Callable[[BaseException], float])
+    -> None:
+
+    '
+  source: tenacity/wait.py:142
+  enclosing: wait_exception.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-314
+  statement: Код проверяет фрагмент tenacity/wait.py:150 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        if exception is None:\n            raise RuntimeError(\"outcome\
+    \ failed but the exception is None\")\n        return self.predicate(exception)\n"
+  source: tenacity/wait.py:150
+  enclosing: wait_exception.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-315
+  statement: Код проверяет фрагмент tenacity/wait.py:159 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    (and restricting the upper limit to some maximum value).
+
+    '
+  source: tenacity/wait.py:159
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-316
+  statement: Код проверяет фрагмент tenacity/wait.py:169 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.increment = _utils.to_seconds(increment)
+
+    '
+  source: tenacity/wait.py:169
+  enclosing: wait_incrementing.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-317
+  statement: Код проверяет фрагмент tenacity/wait.py:178 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Wait strategy that applies exponential backoff.
+
+    '
+  source: tenacity/wait.py:178
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-318
+  statement: Код проверяет фрагмент tenacity/wait.py:186 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    contention between multiple processes for a shared resource. Use\n\
+    \    wait_random_exponential for the latter case.\n    \"\"\"\n"
+  source: tenacity/wait.py:186
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-319
+  statement: Код проверяет фрагмент tenacity/wait.py:195 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        min: _utils.time_unit_type = 0,  # noqa\n    ) -> None:\n   \
+    \     self.multiplier = multiplier\n"
+  source: tenacity/wait.py:195
+  enclosing: wait_exponential.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-320
+  statement: Код проверяет фрагмент tenacity/wait.py:204 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            exp = self.exp_base ** (retry_state.attempt_number - 1)\n\
+    \            result = self.multiplier * exp\n        except OverflowError:\n"
+  source: tenacity/wait.py:204
+  enclosing: wait_exponential.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-321
+  statement: Код проверяет фрагмент tenacity/wait.py:212 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Random wait with exponentially widening window.
+
+    '
+  source: tenacity/wait.py:212
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-322
+  statement: Код проверяет фрагмент tenacity/wait.py:220 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+
+    '
+  source: tenacity/wait.py:220
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-323
+  statement: Код проверяет фрагмент tenacity/wait.py:231 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    When waiting for an unavailable resource to become available again,\
+    \ as\n    opposed to trying to resolve contention for a shared resource, the\n\
+    \    wait_exponential strategy (which uses a fixed interval) may be preferable.\n"
+  source: tenacity/wait.py:231
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-324
+  statement: Код проверяет фрагмент tenacity/wait.py:242 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class wait_exponential_jitter(wait_base):
+
+    '
+  source: tenacity/wait.py:242
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-325
+  statement: Код проверяет фрагмент tenacity/wait.py:251 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    where n is the retry count.
+
+    '
+  source: tenacity/wait.py:251
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

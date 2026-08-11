@@ -1,0 +1,15 @@
+module: billing.py
+purpose: "Тарифы по плану и начисление комиссии."
+public_interface:
+  - name: rate_for
+    kind: function
+    summary: "Возвращает тариф по плану."
+    source: billing.py:9
+  - name: charge
+    kind: function
+    summary: "Начисляет сумму с комиссией."
+    source: billing.py:15
+depends_on: []
+side_effects: []
+confidence: high
+notes_uncertain: []

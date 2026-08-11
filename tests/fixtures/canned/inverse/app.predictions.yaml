@@ -1,0 +1,36 @@
+# Зафиксированный LLM-выход этапа 92 (DoD-10): предсказания по формулировкам
+# правил app.py — БЕЗ доступа к evidence/source. Одно предсказание (порог у
+# subj-R-002) намеренно не восстанавливается из кода: лимит записан как
+# 10_000 через константу — метрика обязана это показать.
+capability: app.py
+predictions:
+  - rule_id: subj-R-001
+    expect:
+      - kind: message
+        text: "amount must be positive"
+        module_hint: UNCERTAIN
+      - kind: check
+        text: "amount <= 0"
+        module_hint: UNCERTAIN
+  - rule_id: subj-R-002
+    expect:
+      - kind: message
+        text: "amount exceeds transfer limit"
+        module_hint: UNCERTAIN
+      - kind: threshold
+        text: "amount > 10000"
+        module_hint: UNCERTAIN
+  - rule_id: subj-R-003
+    expect:
+      - kind: message
+        text: "source and destination must differ"
+        module_hint: UNCERTAIN
+      - kind: check
+        text: "src == dst"
+        module_hint: UNCERTAIN
+  - rule_id: subj-R-004
+    expect:
+      - kind: threshold
+        text: "250"
+        module_hint: app.py
+notes_uncertain: []

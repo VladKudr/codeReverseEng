@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Этап 3 — контракт внешнего интерфейса (OpenAPI либо CLI/library)",
+  "type": "object",
+  "oneOf": [
+    {
+      "description": "api.openapi.yaml: стандартный OpenAPI 3.x, к каждому path добавлен x-source",
+      "type": "object",
+      "required": ["openapi", "paths"],
+      "properties": {
+        "openapi": {"type": "string", "pattern": "^3\\."},
+        "paths": {"type": "object"}
+      }
+    },
+    {
+      "description": "api.cli.yaml: HTTP-границы нет, контракт по фактической границе",
+      "type": "object",
+      "required": ["openapi_applicable", "openapi_absence_evidence", "interface"],
+      "properties": {
+        "openapi_applicable": {"const": false},
+        "openapi_absence_evidence": {"type": "string", "minLength": 1},
+        "interface": {"enum": ["cli", "library", "worker"]},
+        "commands": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "required": ["name", "x-source"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "summary": {"type": "string"},
+              "options": {"type": ["array", "null"]},
+              "x-source": {"$ref": "#/$defs/source"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "x-events": {
+      "type": ["object", "null"],
+      "properties": {
+        "produces": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "required": ["topic_or_queue", "source"],
+            "properties": {
+              "topic_or_queue": {"type": "string", "minLength": 1},
+              "payload_schema_ref": {"type": "string"},
+              "trigger": {"type": "string"},
+              "source": {"$ref": "#/$defs/source"}
+            }
+          }
+        },
+        "consumes": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "required": ["topic_or_queue", "handler", "source"],
+            "properties": {
+              "topic_or_queue": {"type": "string", "minLength": 1},
+              "handler": {"type": "string", "minLength": 1},
+              "source": {"$ref": "#/$defs/source"}
+            }
+          }
+        }
+      }
+    },
+    "x-uncertain": {"type": ["array", "null"]}
+  },
+  "$defs": {
+    "source": {
+      "type": "string",
+      "pattern": "^.+:[0-9]+(-[0-9]+)?$",
+      "description": "ссылка вида файл:строка или файл:начало-конец"
+    }
+  }
+}

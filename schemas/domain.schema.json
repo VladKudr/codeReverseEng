@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Этап 2 — доменная модель",
+  "type": "object",
+  "required": ["entities", "confidence"],
+  "properties": {
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "source"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "table_or_schema": {"type": "string"},
+          "source": {"$ref": "#/$defs/source"},
+          "attributes": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "required": ["name", "type", "source"],
+              "properties": {
+                "name": {"type": "string", "minLength": 1},
+                "type": {"type": "string", "minLength": 1},
+                "constraints": {"type": ["array", "null"]},
+                "source": {"$ref": "#/$defs/source"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "cardinality", "evidence", "source"],
+        "properties": {
+          "from": {"type": "string", "minLength": 1},
+          "to": {"type": "string", "minLength": 1},
+          "cardinality": {"enum": ["1:1", "1:N", "0..1:N", "M:N"]},
+          "via": {"type": "string"},
+          "evidence": {"type": "string", "minLength": 1},
+          "source": {"$ref": "#/$defs/source"}
+        }
+      }
+    },
+    "enums_and_statuses": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["entity", "field", "values"],
+        "properties": {
+          "entity": {"type": "string", "minLength": 1},
+          "field": {"type": "string", "minLength": 1},
+          "values": {"type": "array"},
+          "transitions_found_in_code": {"type": ["array", "null"]}
+        }
+      }
+    },
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "notes_uncertain": {"type": ["array", "null"]}
+  },
+  "$defs": {
+    "source": {
+      "type": "string",
+      "pattern": "^.+:[0-9]+(-[0-9]+)?$",
+      "description": "ссылка вида файл:строка или файл:начало-конец"
+    }
+  }
+}

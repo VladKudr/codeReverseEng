@@ -1,0 +1,140 @@
+repo: tenacity
+module: tenacity/_utils.py
+rules:
+- id: tenacity-R-501
+  statement: Код проверяет фрагмент tenacity/_utils.py:16 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'import functools
+
+    import inspect
+
+    import sys
+
+    '
+  source: tenacity/_utils.py:16
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-502
+  statement: Код проверяет фрагмент tenacity/_utils.py:28 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "class LoggerProtocol(typing.Protocol):\n    \"\"\"\n    Protocol used\
+    \ by utils expecting a logger (eg: before_log).\n"
+  source: tenacity/_utils.py:28
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-503
+  statement: Код проверяет фрагмент tenacity/_utils.py:40 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "def find_ordinal(pos_num: int) -> str:\n    # See: https://en.wikipedia.org/wiki/English_numerals#Ordinal_numbers\n\
+    \    if pos_num == 0:\n"
+  source: tenacity/_utils.py:40
+  enclosing: find_ordinal
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-504
+  statement: Код проверяет фрагмент tenacity/_utils.py:50 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    elif 4 <= pos_num <= 20:\n        return \"th\"\n    else:\n"
+  source: tenacity/_utils.py:50
+  enclosing: find_ordinal
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-505
+  statement: Код проверяет фрагмент tenacity/_utils.py:61 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Get a callback fully-qualified name.
+
+    '
+  source: tenacity/_utils.py:61
+  enclosing: get_callback_name
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-506
+  statement: Код проверяет фрагмент tenacity/_utils.py:70 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            segments.append(cb.__name__)\n        except AttributeError:\n\
+    \            pass\n"
+  source: tenacity/_utils.py:70
+  enclosing: get_callback_name
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-507
+  statement: Код проверяет фрагмент tenacity/_utils.py:79 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                segments.insert(0, cb.__module__)\n        except AttributeError:\n\
+    \            pass\n"
+  source: tenacity/_utils.py:79
+  enclosing: get_callback_name
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-508
+  statement: Код проверяет фрагмент tenacity/_utils.py:89 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    return float(\n        time_unit.total_seconds() if isinstance(time_unit,\
+    \ timedelta) else time_unit\n    )\n"
+  source: tenacity/_utils.py:89
+  enclosing: to_seconds
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-509
+  statement: Код проверяет фрагмент tenacity/_utils.py:97 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    if inspect.iscoroutinefunction(call):\n        return True\n    partial_call\
+    \ = isinstance(call, functools.partial) and call.func\n"
+  source: tenacity/_utils.py:97
+  enclosing: is_coroutine_callable
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-510
+  statement: Код проверяет фрагмент tenacity/_utils.py:105 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    call: typing.Callable[..., typing.Any],\n) -> typing.Callable[...,\
+    \ typing.Awaitable[typing.Any]]:\n    if is_coroutine_callable(call):\n"
+  source: tenacity/_utils.py:105
+  enclosing: wrap_to_async_func
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

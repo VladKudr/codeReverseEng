@@ -1,0 +1,999 @@
+repo: tenacity
+module: tenacity/__init__.py
+rules:
+- id: tenacity-R-001
+  statement: Код проверяет фрагмент tenacity/__init__.py:18 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'import dataclasses
+
+    import functools
+
+    import sys
+
+    '
+  source: tenacity/__init__.py:18
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-002
+  statement: Код проверяет фрагмент tenacity/__init__.py:27 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from concurrent import futures
+
+    '
+  source: tenacity/__init__.py:27
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-003
+  statement: Код проверяет фрагмент tenacity/__init__.py:37 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from .retry import retry_if_exception_type  # noqa
+
+    from .retry import retry_if_exception_cause_type  # noqa
+
+    from .retry import retry_if_not_exception_type  # noqa
+
+    '
+  source: tenacity/__init__.py:37
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-004
+  statement: Код проверяет фрагмент tenacity/__init__.py:44 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from .retry import retry_if_exception_message  # noqa
+
+    '
+  source: tenacity/__init__.py:44
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-005
+  statement: Код проверяет фрагмент tenacity/__init__.py:55 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from .stop import stop_all  # noqa
+
+    from .stop import stop_any  # noqa
+
+    from .stop import stop_never  # noqa
+
+    '
+  source: tenacity/__init__.py:55
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-006
+  statement: Код проверяет фрагмент tenacity/__init__.py:64 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from .wait import wait_exponential  # noqa
+
+    from .wait import wait_fixed  # noqa
+
+    from .wait import wait_incrementing  # noqa
+
+    '
+  source: tenacity/__init__.py:64
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-007
+  statement: Код проверяет фрагмент tenacity/__init__.py:71 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from .wait import wait_exponential_jitter  # noqa
+
+    '
+  source: tenacity/__init__.py:71
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-008
+  statement: Код проверяет фрагмент tenacity/__init__.py:86 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    import tornado\nexcept ImportError:\n    tornado = None\n"
+  source: tenacity/__init__.py:86
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-009
+  statement: Код проверяет фрагмент tenacity/__init__.py:95 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    from .stop import StopBaseT
+
+    '
+  source: tenacity/__init__.py:95
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-010
+  statement: Код проверяет фрагмент tenacity/__init__.py:106 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "class IterState:\n    actions: t.List[t.Callable[[\"RetryCallState\"\
+    ], t.Any]] = dataclasses.field(\n        default_factory=list\n"
+  source: tenacity/__init__.py:106
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-011
+  statement: Код проверяет фрагмент tenacity/__init__.py:115 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def reset(self) -> None:\n        self.actions = []\n        self.retry_run_result\
+    \ = False\n"
+  source: tenacity/__init__.py:115
+  enclosing: IterState.reset
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-012
+  statement: Код проверяет фрагмент tenacity/__init__.py:124 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Always retry the executed function when raised."""
+
+    '
+  source: tenacity/__init__.py:124
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-013
+  statement: Код проверяет фрагмент tenacity/__init__.py:142 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    - __init__: to initialize all necessary fields\n    - REPR_FIELDS:\
+    \ class variable specifying attributes to include in repr(self)\n    - NAME: for\
+    \ identification in retry object methods and callbacks\n"
+  source: tenacity/__init__.py:142
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-014
+  statement: Код проверяет фрагмент tenacity/__init__.py:152 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            f\"{field}={getattr(self, field)!r}\" for field in self.REPR_FIELDS\n\
+    \        )\n        return f\"{self.__class__.__name__}({state_str})\"\n"
+  source: tenacity/__init__.py:152
+  enclosing: BaseAction.__repr__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-015
+  statement: Код проверяет фрагмент tenacity/__init__.py:164 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __init__(self, sleep: t.SupportsFloat) -> None:
+
+    '
+  source: tenacity/__init__.py:164
+  enclosing: RetryAction.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-016
+  statement: Код проверяет фрагмент tenacity/__init__.py:178 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def __init__(self, last_attempt: \"Future\") -> None:\n        self.last_attempt\
+    \ = last_attempt\n        super().__init__(last_attempt)\n"
+  source: tenacity/__init__.py:178
+  enclosing: RetryError.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-017
+  statement: Код проверяет фрагмент tenacity/__init__.py:188 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        return f"{self.__class__.__name__}[{self.last_attempt}]"
+
+    '
+  source: tenacity/__init__.py:188
+  enclosing: RetryError.__str__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-018
+  statement: Код проверяет фрагмент tenacity/__init__.py:202 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        exc_type: t.Optional[t.Type[BaseException]],\n        exc_value:\
+    \ t.Optional[BaseException],\n        traceback: t.Optional[\"types.TracebackType\"\
+    ],\n"
+  source: tenacity/__init__.py:202
+  enclosing: AttemptManager.__exit__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-019
+  statement: Код проверяет фрагмент tenacity/__init__.py:211 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '            self.retry_state.set_result(None)
+
+    '
+  source: tenacity/__init__.py:211
+  enclosing: AttemptManager.__exit__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-020
+  statement: Код проверяет фрагмент tenacity/__init__.py:222 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        before: t.Callable[[\"RetryCallState\"], None] = before_nothing,\n\
+    \        after: t.Callable[[\"RetryCallState\"], None] = after_nothing,\n    \
+    \    before_sleep: t.Optional[t.Callable[[\"RetryCallState\"], None]] = None,\n"
+  source: tenacity/__init__.py:222
+  enclosing: BaseRetrying.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-021
+  statement: Код проверяет фрагмент tenacity/__init__.py:230 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        self.stop = stop\n        self.wait = wait\n        self.retry\
+    \ = retry\n"
+  source: tenacity/__init__.py:230
+  enclosing: BaseRetrying.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-022
+  statement: Код проверяет фрагмент tenacity/__init__.py:237 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        self._local = threading.local()\n        self.retry_error_cls\
+    \ = retry_error_cls\n        self.retry_error_callback = retry_error_callback\n"
+  source: tenacity/__init__.py:237
+  enclosing: BaseRetrying.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-023
+  statement: Код проверяет фрагмент tenacity/__init__.py:247 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        before: t.Union[t.Callable[[\"RetryCallState\"], None], object]\
+    \ = _unset,\n        after: t.Union[t.Callable[[\"RetryCallState\"], None], object]\
+    \ = _unset,\n        before_sleep: t.Union[\n"
+  source: tenacity/__init__.py:247
+  enclosing: BaseRetrying.copy
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-024
+  statement: Код проверяет фрагмент tenacity/__init__.py:255 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            t.Optional[t.Callable[[\"RetryCallState\"], t.Any]], object\n\
+    \        ] = _unset,\n    ) -> \"Self\":\n"
+  source: tenacity/__init__.py:255
+  enclosing: BaseRetrying.copy
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-025
+  statement: Код проверяет фрагмент tenacity/__init__.py:263 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            retry=_first_set(retry, self.retry),\n            before=_first_set(before,\
+    \ self.before),\n            after=_first_set(after, self.after),\n"
+  source: tenacity/__init__.py:263
+  enclosing: BaseRetrying.copy
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-026
+  statement: Код проверяет фрагмент tenacity/__init__.py:270 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                retry_error_callback, self.retry_error_callback\n   \
+    \         ),\n        )\n"
+  source: tenacity/__init__.py:270
+  enclosing: BaseRetrying.copy
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-027
+  statement: Код проверяет фрагмент tenacity/__init__.py:281 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            f\"before={self.before}, \"\n            f\"after={self.after})>\"\
+    \n        )\n"
+  source: tenacity/__init__.py:281
+  enclosing: BaseRetrying.__repr__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-028
+  statement: Код проверяет фрагмент tenacity/__init__.py:292 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        running is underway and/or completed.
+
+    '
+  source: tenacity/__init__.py:292
+  enclosing: BaseRetrying.statistics
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-029
+  statement: Код проверяет фрагмент tenacity/__init__.py:301 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                  running call (so if multiple threads share the same\
+    \ retrying\n                  object - either directly or indirectly) they will\
+    \ each have\n                  there own view of statistics they have collected\
+    \ (in the\n"
+  source: tenacity/__init__.py:301
+  enclosing: BaseRetrying.statistics
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-030
+  statement: Код проверяет фрагмент tenacity/__init__.py:309 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        return self._local.statistics  # type: ignore[no-any-return]
+
+    '
+  source: tenacity/__init__.py:309
+  enclosing: BaseRetrying.statistics
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-031
+  statement: Код проверяет фрагмент tenacity/__init__.py:320 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        :param f: A function to wraps for retrying.
+
+    '
+  source: tenacity/__init__.py:320
+  enclosing: BaseRetrying.wraps
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-032
+  statement: Код проверяет фрагмент tenacity/__init__.py:333 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        def retry_with(*args: t.Any, **kwargs: t.Any) -> WrappedFn:
+
+    '
+  source: tenacity/__init__.py:333
+  enclosing: BaseRetrying.retry_with
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-033
+  statement: Код проверяет фрагмент tenacity/__init__.py:344 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        self.statistics.clear()\n        self.statistics[\"start_time\"\
+    ] = time.monotonic()\n        self.statistics[\"attempt_number\"] = 1\n"
+  source: tenacity/__init__.py:344
+  enclosing: BaseRetrying.begin
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-034
+  statement: Код проверяет фрагмент tenacity/__init__.py:353 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.iter_state.retry_run_result = self.retry(retry_state)
+
+    '
+  source: tenacity/__init__.py:353
+  enclosing: BaseRetrying._run_retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-035
+  statement: Код проверяет фрагмент tenacity/__init__.py:365 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.iter_state.stop_run_result = self.stop(retry_state)
+
+    '
+  source: tenacity/__init__.py:365
+  enclosing: BaseRetrying._run_stop
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-036
+  statement: Код проверяет фрагмент tenacity/__init__.py:374 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def _begin_iter(self, retry_state: "RetryCallState") -> None:  #
+    noqa
+
+    '
+  source: tenacity/__init__.py:374
+  enclosing: BaseRetrying._begin_iter
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-037
+  statement: Код проверяет фрагмент tenacity/__init__.py:384 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        self.iter_state.is_explicit_retry = fut.failed and isinstance(\n\
+    \            fut.exception(), TryAgain\n        )\n"
+  source: tenacity/__init__.py:384
+  enclosing: BaseRetrying._begin_iter
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-038
+  statement: Код проверяет фрагмент tenacity/__init__.py:393 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '            self._add_action_func(lambda rs: rs.outcome.result())
+
+    '
+  source: tenacity/__init__.py:393
+  enclosing: BaseRetrying._post_retry_check_actions
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-039
+  statement: Код проверяет фрагмент tenacity/__init__.py:404 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        if self.iter_state.stop_run_result:\n            if self.retry_error_callback:\n\
+    \                self._add_action_func(self.retry_error_callback)\n"
+  source: tenacity/__init__.py:404
+  enclosing: BaseRetrying._post_stop_check_actions
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-040
+  statement: Код проверяет фрагмент tenacity/__init__.py:413 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '                    raise retry_exc.reraise()
+
+    '
+  source: tenacity/__init__.py:413
+  enclosing: BaseRetrying.exc_check
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-041
+  statement: Код проверяет фрагмент tenacity/__init__.py:423 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '            self.statistics["idle_for"] += sleep
+
+    '
+  source: tenacity/__init__.py:423
+  enclosing: BaseRetrying.next_action
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-042
+  statement: Код проверяет фрагмент tenacity/__init__.py:434 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.begin()
+
+    '
+  source: tenacity/__init__.py:434
+  enclosing: BaseRetrying.__iter__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-043
+  statement: Код проверяет фрагмент tenacity/__init__.py:443 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                self.sleep(do)\n            else:\n                break\n"
+  source: tenacity/__init__.py:443
+  enclosing: BaseRetrying.__iter__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-044
+  statement: Код проверяет фрагмент tenacity/__init__.py:457 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class Retrying(BaseRetrying):
+
+    '
+  source: tenacity/__init__.py:457
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-045
+  statement: Код проверяет фрагмент tenacity/__init__.py:466 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.begin()
+
+    '
+  source: tenacity/__init__.py:466
+  enclosing: Retrying.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-046
+  statement: Код проверяет фрагмент tenacity/__init__.py:477 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                    retry_state.set_result(result)\n            elif\
+    \ isinstance(do, DoSleep):\n                retry_state.prepare_for_next_attempt()\n"
+  source: tenacity/__init__.py:477
+  enclosing: Retrying.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-047
+  statement: Код проверяет фрагмент tenacity/__init__.py:488 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def __init__(self, attempt_number: int) -> None:\n        super().__init__()\n\
+    \        self.attempt_number = attempt_number\n"
+  source: tenacity/__init__.py:488
+  enclosing: Future.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-048
+  statement: Код проверяет фрагмент tenacity/__init__.py:498 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def construct(\n        cls, attempt_number: int, value: t.Any, has_exception:\
+    \ bool\n    ) -> \"Future\":\n"
+  source: tenacity/__init__.py:498
+  enclosing: Future.construct
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-049
+  statement: Код проверяет фрагмент tenacity/__init__.py:506 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '            fut.set_result(value)
+
+    '
+  source: tenacity/__init__.py:506
+  enclosing: Future.construct
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-050
+  statement: Код проверяет фрагмент tenacity/__init__.py:518 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        kwargs: t.Any,\n    ) -> None:\n        #: Retry call start timestamp\n"
+  source: tenacity/__init__.py:518
+  enclosing: RetryCallState.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-051
+  statement: Код проверяет фрагмент tenacity/__init__.py:534 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        self.outcome: t.Optional[Future] = None\n        #: Timestamp\
+    \ of the last outcome\n        self.outcome_timestamp: t.Optional[float] = None\n"
+  source: tenacity/__init__.py:534
+  enclosing: RetryCallState.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-052
+  statement: Код проверяет фрагмент tenacity/__init__.py:548 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        return self.outcome_timestamp - self.start_time
+
+    '
+  source: tenacity/__init__.py:548
+  enclosing: RetryCallState.seconds_since_start
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-053
+  statement: Код проверяет фрагмент tenacity/__init__.py:557 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        ts = time.monotonic()\n        fut = Future(self.attempt_number)\n\
+    \        fut.set_result(val)\n"
+  source: tenacity/__init__.py:557
+  enclosing: RetryCallState.set_result
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-054
+  statement: Код проверяет фрагмент tenacity/__init__.py:568 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        ts = time.monotonic()\n        fut = Future(self.attempt_number)\n\
+    \        fut.set_exception(exc_info[1])\n"
+  source: tenacity/__init__.py:568
+  enclosing: RetryCallState.set_exception
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-055
+  statement: Код проверяет фрагмент tenacity/__init__.py:576 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "        elif self.outcome.failed:\n            exception = self.outcome.exception()\n\
+    \            result = f\"failed ({exception.__class__.__name__} {exception})\"\
+    \n"
+  source: tenacity/__init__.py:576
+  enclosing: RetryCallState.__repr__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-056
+  statement: Код проверяет фрагмент tenacity/__init__.py:587 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "class _AsyncRetryDecorator(t.Protocol):\n    @t.overload\n    def __call__(\n"
+  source: tenacity/__init__.py:587
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-057
+  statement: Код проверяет фрагмент tenacity/__init__.py:597 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def __call__(\n        self, fn: t.Callable[P, t.Awaitable[R]]\n\
+    \    ) -> t.Callable[P, t.Awaitable[R]]: ...\n"
+  source: tenacity/__init__.py:597
+  enclosing: _AsyncRetryDecorator.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-058
+  statement: Код проверяет фрагмент tenacity/__init__.py:613 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    wait: \"WaitBaseT\" = ...,\n    retry: \"t.Union[RetryBaseT, tasyncio.retry.RetryBaseT]\"\
+    \ = ...,\n    before: t.Callable[[\"RetryCallState\"], t.Union[None, t.Awaitable[None]]]\
+    \ = ...,\n"
+  source: tenacity/__init__.py:613
+  enclosing: retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-059
+  statement: Код проверяет фрагмент tenacity/__init__.py:621 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    retry_error_cls: t.Type[\"RetryError\"] = ...,\n    retry_error_callback:\
+    \ t.Optional[\n        t.Callable[[\"RetryCallState\"], t.Union[t.Any, t.Awaitable[t.Any]]]\n"
+  source: tenacity/__init__.py:621
+  enclosing: retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-060
+  statement: Код проверяет фрагмент tenacity/__init__.py:633 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    retry: \"t.Union[RetryBaseT, tasyncio.retry.RetryBaseT]\" = retry_if_exception_type(),\n\
+    \    before: t.Callable[\n        [\"RetryCallState\"], t.Union[None, t.Awaitable[None]]\n"
+  source: tenacity/__init__.py:633
+  enclosing: retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-061
+  statement: Код проверяет фрагмент tenacity/__init__.py:640 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    before_sleep: t.Optional[\n        t.Callable[[\"RetryCallState\"\
+    ], t.Union[None, t.Awaitable[None]]]\n    ] = None,\n"
+  source: tenacity/__init__.py:640
+  enclosing: retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-062
+  statement: Код проверяет фрагмент tenacity/__init__.py:651 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'def retry(*dargs: t.Any, **dkw: t.Any) -> t.Any:
+
+    '
+  source: tenacity/__init__.py:651
+  enclosing: retry
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-063
+  statement: Код проверяет фрагмент tenacity/__init__.py:663 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "            if isinstance(f, retry_base):\n                warnings.warn(\n\
+    \                    f\"Got retry_base instance ({f.__class__.__name__}) as callable\
+    \ argument, \"\n"
+  source: tenacity/__init__.py:663
+  enclosing: wrap
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-064
+  statement: Код проверяет фрагмент tenacity/__init__.py:671 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "                sleep is not None and _utils.is_coroutine_callable(sleep)\n\
+    \            ):\n                r = AsyncRetrying(*dargs, **dkw)\n"
+  source: tenacity/__init__.py:671
+  enclosing: wrap
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-065
+  statement: Код проверяет фрагмент tenacity/__init__.py:688 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'from tenacity.asyncio import AsyncRetrying  # noqa:E402,I100
+
+    '
+  source: tenacity/__init__.py:688
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-066
+  statement: Код проверяет фрагмент tenacity/__init__.py:700 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    \"retry_if_exception_type\",\n    \"retry_if_exception_cause_type\"\
+    ,\n    \"retry_if_not_exception_type\",\n"
+  source: tenacity/__init__.py:700
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-067
+  statement: Код проверяет фрагмент tenacity/__init__.py:707 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    \"retry_if_exception_message\",\n    \"retry_if_not_exception_message\"\
+    ,\n    \"sleep\",\n"
+  source: tenacity/__init__.py:707
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-068
+  statement: Код проверяет фрагмент tenacity/__init__.py:717 (фикстура известного
+    прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    \"stop_when_event_set\",\n    \"wait_chain\",\n    \"wait_combine\"\
+    ,\n"
+  source: tenacity/__init__.py:717
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

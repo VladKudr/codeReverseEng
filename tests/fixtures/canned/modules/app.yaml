@@ -1,0 +1,19 @@
+module: app.py
+purpose: "Перенос средств с проверкой суммы и лимитов; нарезка строк на пачки."
+public_interface:
+  - name: validate_amount
+    kind: function
+    summary: "Проверяет сумму перевода."
+    source: app.py:11
+  - name: transfer
+    kind: function
+    summary: "Выполняет перенос средств."
+    source: app.py:19
+  - name: split_batches
+    kind: function
+    summary: "Режет строки на пачки фиксированного размера."
+    source: app.py:26
+depends_on: []
+side_effects: []
+confidence: high
+notes_uncertain: []

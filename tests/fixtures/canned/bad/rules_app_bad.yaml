@@ -1,0 +1,31 @@
+# Намеренно испорченная версия rules/app.yaml для проверки ретрая:
+# у subj-R-001 цитата сокращена по середине (то, что запрещено), у R-002 —
+# неверный номер строки далеко за допуском.
+repo: subj
+module: app.py
+rules:
+  - id: subj-R-001
+    statement: "Если сумма перевода не положительна, то система отклоняет операцию с сообщением «amount must be positive»."
+    category: validation
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if amount <= 0: ... ValueError
+    source: app.py:12
+    enclosing: validate_amount
+    called_by: [transfer]
+    config_driven: false
+    confidence: high
+  - id: subj-R-002
+    statement: "Если сумма перевода превышает лимит 10000, то система отклоняет операцию."
+    category: limit
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if amount > MAX_TRANSFER:
+          raise ValueError("amount exceeds transfer limit")
+    source: app.py:33
+    enclosing: validate_amount
+    called_by: [transfer]
+    config_driven: false
+    confidence: high
+edge_cases_and_errors: []
+notes_uncertain: []

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Этап 4 — бизнес-правила модуля",
+  "type": "object",
+  "required": ["repo", "module", "rules"],
+  "properties": {
+    "repo": {"type": "string", "minLength": 1},
+    "module": {"type": "string", "minLength": 1},
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "category", "evidence", "source", "enclosing", "confidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.\\-]+-R-[0-9]{3,}$",
+            "description": "формат {REPO}-R-NNN"
+          },
+          "statement": {"type": "string", "minLength": 1},
+          "category": {
+            "enum": ["validation", "authorization", "calculation",
+                     "state_transition", "limit", "notification", "other"]
+          },
+          "actors_affected": {"type": ["array", "null"]},
+          "evidence": {"type": "string", "minLength": 1},
+          "source": {"$ref": "#/$defs/source"},
+          "enclosing": {"type": "string", "minLength": 1},
+          "called_by": {"type": ["array", "null"]},
+          "config_driven": {"type": ["boolean", "string"]},
+          "confidence": {"enum": ["high", "medium", "low"]}
+        }
+      }
+    },
+    "edge_cases_and_errors": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["case", "behavior", "source"],
+        "properties": {
+          "case": {"type": "string", "minLength": 1},
+          "behavior": {"type": "string", "minLength": 1},
+          "source": {"$ref": "#/$defs/source"}
+        }
+      }
+    },
+    "notes_uncertain": {"type": ["array", "null"]}
+  },
+  "$defs": {
+    "source": {
+      "type": "string",
+      "pattern": "^.+:[0-9]+(-[0-9]+)?$",
+      "description": "ссылка вида файл:строка или файл:начало-конец"
+    }
+  }
+}

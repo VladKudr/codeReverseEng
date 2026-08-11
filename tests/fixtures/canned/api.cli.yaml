@@ -1,0 +1,9 @@
+openapi_applicable: false
+openapi_absence_evidence: "HTTP-маршрутов, контроллеров и middleware в коде нет; граница — программный интерфейс модулей app и billing"
+interface: library
+commands: []
+x-events:
+  produces: []
+  consumes: []
+x-uncertain:
+  - "события искались по именам очередей и topic — не найдены"

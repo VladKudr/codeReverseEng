@@ -1,0 +1,52 @@
+repo: subj
+module: app.py
+rules:
+  - id: subj-R-001
+    statement: "Если сумма перевода не положительна, то система отклоняет операцию с сообщением «amount must be positive»."
+    category: validation
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if amount <= 0:
+          raise ValueError("amount must be positive")
+    source: app.py:12
+    enclosing: validate_amount
+    called_by: [transfer]
+    config_driven: false
+    confidence: high
+  - id: subj-R-002
+    statement: "Если сумма перевода превышает лимит 10000, то система отклоняет операцию с сообщением «amount exceeds transfer limit»."
+    category: limit
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if amount > MAX_TRANSFER:
+          raise ValueError("amount exceeds transfer limit")
+    source: app.py:14
+    enclosing: validate_amount
+    called_by: [transfer]
+    config_driven: false
+    confidence: high
+  - id: subj-R-003
+    statement: "Если источник и получатель перевода совпадают, то система отклоняет операцию с сообщением «source and destination must differ»."
+    category: validation
+    actors_affected: ["Пользователь системы"]
+    evidence: |
+      if src == dst:
+          raise ValueError("source and destination must differ")
+    source: app.py:21
+    enclosing: transfer
+    called_by: [UNCERTAIN]
+    config_driven: false
+    confidence: high
+  - id: subj-R-004
+    statement: "Если строк больше 250, то система режет загрузку на пачки по 250 строк."
+    category: limit
+    actors_affected: [UNCERTAIN]
+    evidence: |
+      for i in range(0, len(rows), BATCH_SIZE):
+    source: app.py:28
+    enclosing: split_batches
+    called_by: [UNCERTAIN]
+    config_driven: false
+    confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

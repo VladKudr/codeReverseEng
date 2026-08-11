@@ -1,0 +1,21 @@
+repo: subj
+repo_path: "."
+languages:
+  python: 100
+frameworks: []
+entry_points: []
+external_dependencies:
+  - name: PostgreSQL
+    kind: db
+    evidence: 'DB_URL = "postgresql://billing:S3cr3tPass@db.internal:5432/billing"'
+    source: billing.py:3
+cross_repo_signals: []
+modules:
+  - path: app.py
+    approx_size: 37
+  - path: billing.py
+    approx_size: 19
+  - path: tests/test_app.py
+    approx_size: 10
+notes_uncertain:
+  - "межсистемные связи искались по клиентам, очередям и URL — не найдены; репозиторий одиночный"

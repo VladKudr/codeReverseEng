@@ -1,0 +1,21 @@
+capability: billing.py
+predictions:
+  - rule_id: subj-R-101
+    expect:
+      - kind: check
+        text: 'plan == "premium"'
+        module_hint: billing.py
+      - kind: threshold
+        text: "return 0.01"
+        module_hint: billing.py
+  - rule_id: subj-R-102
+    expect:
+      - kind: message
+        text: "charge amount cannot be negative"
+        module_hint: UNCERTAIN
+  - rule_id: subj-R-103
+    expect:
+      - kind: location
+        text: "postgresql://"
+        module_hint: billing.py
+notes_uncertain: []

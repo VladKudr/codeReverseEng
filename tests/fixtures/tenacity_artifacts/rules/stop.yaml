@@ -1,0 +1,175 @@
+repo: tenacity
+module: tenacity/stop.py
+rules:
+- id: tenacity-R-201
+  statement: Код проверяет фрагмент tenacity/stop.py:17 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'import typing
+
+    '
+  source: tenacity/stop.py:17
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-202
+  statement: Код проверяет фрагмент tenacity/stop.py:27 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class stop_base(abc.ABC):
+
+    '
+  source: tenacity/stop.py:27
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-203
+  statement: Код проверяет фрагмент tenacity/stop.py:35 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        return stop_all(self, other)
+
+    '
+  source: tenacity/stop.py:35
+  enclosing: stop_base.__and__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-204
+  statement: Код проверяет фрагмент tenacity/stop.py:45 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    """Stop if any of the stop condition is valid."""
+
+    '
+  source: tenacity/stop.py:45
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-205
+  statement: Код проверяет фрагмент tenacity/stop.py:54 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'class stop_all(stop_base):
+
+    '
+  source: tenacity/stop.py:54
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-206
+  statement: Код проверяет фрагмент tenacity/stop.py:61 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        return all(x(retry_state) for x in self.stops)
+
+    '
+  source: tenacity/stop.py:61
+  enclosing: stop_all.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-207
+  statement: Код проверяет фрагмент tenacity/stop.py:71 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: 'stop_never = _stop_never()
+
+    '
+  source: tenacity/stop.py:71
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-208
+  statement: Код проверяет фрагмент tenacity/stop.py:80 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    def __call__(self, retry_state: "RetryCallState") -> bool:
+
+    '
+  source: tenacity/stop.py:80
+  enclosing: stop_when_event_set.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-209
+  statement: Код проверяет фрагмент tenacity/stop.py:88 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '        self.max_attempt_number = max_attempt_number
+
+    '
+  source: tenacity/stop.py:88
+  enclosing: stop_after_attempt.__init__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-210
+  statement: Код проверяет фрагмент tenacity/stop.py:98 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    Note: `max_delay` will be exceeded, so when used with a `wait`, the
+    actual total delay will be greater
+
+    '
+  source: tenacity/stop.py:98
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-211
+  statement: Код проверяет фрагмент tenacity/stop.py:107 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: "    def __call__(self, retry_state: \"RetryCallState\") -> bool:\n  \
+    \      if retry_state.seconds_since_start is None:\n            raise RuntimeError(\"\
+    __call__() called but seconds_since_start is not set\")\n"
+  source: tenacity/stop.py:107
+  enclosing: stop_after_delay.__call__
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+- id: tenacity-R-212
+  statement: Код проверяет фрагмент tenacity/stop.py:115 (фикстура известного прогона).
+  category: other
+  actors_affected:
+  - UNCERTAIN
+  evidence: '    Stop right before the next attempt would take place after the time
+    from the first attempt >= limit.
+
+    '
+  source: tenacity/stop.py:115
+  enclosing: module
+  called_by:
+  - UNCERTAIN
+  config_driven: false
+  confidence: medium
+edge_cases_and_errors: []
+notes_uncertain: []

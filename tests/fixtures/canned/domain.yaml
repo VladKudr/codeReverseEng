@@ -1,0 +1,14 @@
+entities:
+  - name: Transfer
+    table_or_schema: "структура-словарь, не таблица"
+    source: app.py:23
+    attributes:
+      - name: amount
+        type: UNCERTAIN
+        constraints: []
+        source: app.py:23
+relations: []
+enums_and_statuses: []
+confidence: low
+notes_uncertain:
+  - "собственной схемы хранения у системы нет: ORM, миграций и DDL в коде не найдено"
