@@ -64,6 +64,8 @@ class Config:
     agent_command: str
     agent_by_stage: dict[str, str]
     agent_stdin: bool
+    agent_mode: str          # tools | stdout | text
+    max_inline_kb: int       # бюджет вложений в режиме text
     timeout_sec: int
     metrics_regex: str
     models: dict[str, str]
@@ -97,6 +99,9 @@ class Config:
         for _p, t in tier_map + [("", tier_default)]:
             if t not in TIER_RANK:
                 raise ValueError(f"неизвестный ярус {t!r} (допустимы {sorted(TIER_RANK)})")
+        mode = str(agent.get("mode", "tools"))
+        if mode not in ("tools", "stdout", "text"):
+            raise ValueError(f"неизвестный agent.mode {mode!r} (tools | stdout | text)")
         return cls(
             base=base,
             repo_path=as_path(raw["repo"]["path"]),
@@ -105,6 +110,8 @@ class Config:
             agent_command=agent.get("command", ""),
             agent_by_stage={str(k): v for k, v in (agent.get("by_stage") or {}).items()},
             agent_stdin=bool(agent.get("stdin", False)),
+            agent_mode=str(agent.get("mode", "tools")),
+            max_inline_kb=int(agent.get("max_inline_kb", 512)),
             timeout_sec=int(agent.get("timeout_sec", 1800)),
             metrics_regex=agent.get("metrics_regex") or "",
             models={str(k): str(v) for k, v in (raw.get("models") or {}).items()},
@@ -280,8 +287,8 @@ class Runner:
         }
 
     def call_agent(self, stage: str, tag: str, prompt_text: str,
-                   out_file: Path) -> int | None:
-        """Запуск CLI-агента; возвращает токены (если агент отдаёт метрики).
+                   out_file: Path) -> tuple[int | None, str]:
+        """Запуск CLI-агента; возвращает (токены по метрикам, stdout агента).
 
         Промпт передаётся одним из трёх способов — по выбору команды в config:
           {prompt_file} — путь к файлу с готовым промптом;
@@ -313,7 +320,7 @@ class Runner:
         self.log.write(f"[{tag}] агент: {shown}")
         if not argv:
             self.log.write(f"[{tag}] ОСТАНОВ: команда агента пуста (agent.command в config.yaml)")
-            return None
+            return None, ""
         try:
             proc = subprocess.run(
                 argv, capture_output=True, text=True,
@@ -322,20 +329,192 @@ class Runner:
             )
         except subprocess.TimeoutExpired:
             self.log.write(f"[{tag}] агент превысил тайм-аут {self.cfg.timeout_sec} с")
-            return None
+            return None, ""
         except FileNotFoundError as e:
             self.log.write(f"[{tag}] команда агента не найдена: {e}")
-            return None
+            return None, ""
         log_path.write_text(
             (proc.stdout or "") + "\n--- stderr ---\n" + (proc.stderr or ""),
             encoding="utf-8")
         if proc.returncode != 0:
             self.log.write(f"[{tag}] агент завершился с кодом {proc.returncode}, лог: {log_path}")
+        tokens = None
         if self.cfg.metrics_regex:
             m = re.search(self.cfg.metrics_regex, proc.stdout or "")
             if m:
-                return int(m.group(1))
-        return None
+                tokens = int(m.group(1))
+        return tokens, proc.stdout or ""
+
+    # ── режимы stdout/text: артефакты пишет runner, а не агент ─────────────
+    # Смысл: подтверждения в корпоративных CLI требуют инструментальные
+    # действия агента (запись файлов, команды). В режиме stdout агент только
+    # печатает FILE-блоки; в режиме text он вдобавок не читает репозиторий —
+    # все входы вкладывает в промпт детерминированный слой.
+
+    FILE_BLOCK_RE = re.compile(
+        r"===\s*FILE:\s*(?P<path>[^=\n]+?)\s*===\s*\n(?P<body>.*?)\n?===\s*END\s*FILE\s*===",
+        re.DOTALL)
+
+    @staticmethod
+    def parse_file_blocks(stdout: str) -> dict[str, str]:
+        """FILE-блоки из stdout агента -> {путь: содержимое}."""
+        return {m.group("path").strip(): m.group("body")
+                for m in Runner.FILE_BLOCK_RE.finditer(stdout)}
+
+    @staticmethod
+    def _strip_fences(text: str) -> str:
+        lines = text.strip().splitlines()
+        if len(lines) >= 2 and lines[0].startswith("```") and lines[-1].startswith("```"):
+            return "\n".join(lines[1:-1])
+        return text.strip()
+
+    def write_outputs_from_stdout(self, tag: str, stdout: str,
+                                  out_files: list[Path]) -> None:
+        """Запись артефактов из stdout агента. Пишем ТОЛЬКО по ожидаемым путям:
+        блок с посторонним путём логируется и пропускается."""
+        blocks = self.parse_file_blocks(stdout)
+        expected = {str(p): p for p in out_files}
+        by_name = {p.name: p for p in out_files}
+        written = 0
+        for raw_path, body in blocks.items():
+            target = expected.get(raw_path) or by_name.get(Path(raw_path).name)
+            if target is None:
+                self.log.write(f"[{tag}] FILE-блок с посторонним путём {raw_path!r} — пропущен")
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(body if body.endswith("\n") else body + "\n",
+                              encoding="utf-8")
+            written += 1
+        if not blocks and len(out_files) == 1 and stdout.strip():
+            # деградация: агент вывел содержимое без протокола — берём как есть
+            out_files[0].parent.mkdir(parents=True, exist_ok=True)
+            out_files[0].write_text(self._strip_fences(stdout) + "\n", encoding="utf-8")
+            self.log.write(f"[{tag}] FILE-блоков нет — весь stdout принят как {out_files[0].name}")
+            written = 1
+        if written:
+            self.log.write(f"[{tag}] записано артефактов из stdout: {written}")
+
+    def stdout_protocol(self, out_files: list[Path]) -> str:
+        listing = "\n".join(f"* `{p}`" for p in out_files)
+        return (
+            "\n\n## Режим вывода: stdout (файлы записывает оркестратор)\n\n"
+            "НЕ записывай файлы и НЕ вызывай инструменты записи. Каждый артефакт "
+            "выведи в stdout блоком строго такого вида (путь — как в списке ниже):\n\n"
+            "===FILE: <путь артефакта>===\n<содержимое целиком>\n===END FILE===\n\n"
+            "Ожидаемые артефакты:\n" + listing + "\n\n"
+            "Если по заданию применим только один из перечисленных файлов — "
+            "выведи только его. Вне блоков ничего не выводи (кроме строки метрик, "
+            "если твой CLI её печатает).\n")
+
+    # ── режим text: входы вкладывает детерминированный слой ────────────────
+
+    _TREE_SKIP = {".git", "__pycache__", "node_modules", ".venv", "venv",
+                  "dist", "build", ".tox", ".pytest_cache"}
+    _MANIFEST_GLOBS = ["pyproject.toml", "setup.py", "setup.cfg",
+                       "requirements*.txt", "package.json", "go.mod", "pom.xml",
+                       "Cargo.toml", "Dockerfile*", "docker-compose*",
+                       "README*", ".github/workflows/*.yml",
+                       ".github/workflows/*.yaml"]
+
+    def _repo_tree(self) -> str:
+        rows = []
+        for p in sorted(self.cfg.repo_path.rglob("*")):
+            rel = p.relative_to(self.cfg.repo_path)
+            if any(part in self._TREE_SKIP for part in rel.parts):
+                continue
+            if p.is_file():
+                try:
+                    n = sum(1 for _ in p.open("rb"))
+                except OSError:
+                    n = 0
+                rows.append(f"{rel} ({n} строк)")
+            if len(rows) >= 5000:
+                rows.append("… (дерево обрезано на 5000 файлах)")
+                break
+        return "\n".join(rows)
+
+    def _inline_items(self, stage: str, variables: dict[str, str]) -> list[tuple[str, str]] | None:
+        """(метка, содержимое) для вложения в промпт; None = этап не для text."""
+        repo = self.cfg.repo_path
+
+        def read(p: Path) -> str:
+            return p.read_text(encoding="utf-8", errors="replace")
+
+        def ws_glob(pattern: str) -> list[tuple[str, str]]:
+            return [(str(p), read(p)) for p in sorted(self.ws.glob(pattern))]
+
+        if stage == "0":
+            items = [("дерево репозитория", self._repo_tree())]
+            for pattern in self._MANIFEST_GLOBS:
+                items += [(str(p.relative_to(repo)), read(p))
+                          for p in sorted(repo.glob(pattern)) if p.is_file()]
+            return items
+        if stage in ("1", "4"):
+            module = variables["MODULE_PATH"]
+            items = ws_glob(f"inventory/{self.cfg.repo_name}.yaml")
+            items.append((module, read(repo / module)))
+            return items
+        if stage in ("2", "3"):
+            items = ws_glob(f"inventory/{self.cfg.repo_name}.yaml")
+            items += ws_glob(f"extracts/{self.cfg.repo_name}/modules/*.yaml")
+            for m in self.modules_from_inventory():
+                p = repo / m
+                if p.is_file():
+                    items.append((m, read(p)))
+            return items
+        if stage == "5":
+            return (ws_glob("inventory/*.yaml") + ws_glob("extracts/*/modules/*.yaml")
+                    + ws_glob("extracts/*/domain.yaml") + ws_glob("extracts/*/api.*.yaml")
+                    + ws_glob("extracts/*/rules/*.yaml"))
+        if stage == "6":
+            return (ws_glob("extracts/*/rules/*.yaml") + ws_glob("integration/flows.md")
+                    + [(str(HERE / "templates" / "user_story_template.md"),
+                        read(HERE / "templates" / "user_story_template.md"))])
+        if stage == "7":
+            items = (ws_glob("inventory/*.yaml") + ws_glob("extracts/*/modules/*.yaml")
+                     + ws_glob("extracts/*/domain.yaml") + ws_glob("extracts/*/api.*.yaml")
+                     + ws_glob("extracts/*/rules/*.yaml") + ws_glob("integration/flows.md")
+                     + ws_glob("final/stories.md"))
+            for name in ("srs_template.md", "traceability_matrix.csv"):
+                p = HERE / "templates" / name
+                items.append((str(p), read(p)))
+            return items
+        if stage == "90":
+            items = ws_glob(f"extracts/{self.cfg.repo_name}/rules/*.yaml")
+            items += ws_glob("validation/layer1_report.md")
+            from checks.coverage import rule_ranges_by_file
+            for rel in sorted(rule_ranges_by_file(self.rules_dir())):
+                p = repo / rel
+                if p.is_file():
+                    items.append((rel, read(p)))
+            return items
+        if stage == "92":
+            p = Path(variables["STATEMENTS_FILE"])
+            return [(str(p), read(p))]
+        return None  # 89 и прочие исполняемые этапы в text не поддерживаются
+
+    def inline_inputs(self, stage: str, variables: dict[str, str]) -> tuple[str, str]:
+        """(текст вложений, текст ошибки). Бюджет — agent.max_inline_kb."""
+        items = self._inline_items(stage, variables)
+        if items is None:
+            return "", (f"этап {stage} требует исполнения в среде и в режиме "
+                        "agent.mode: text недоступен")
+        budget = self.cfg.max_inline_kb * 1024
+        total = sum(len(c.encode("utf-8")) for _, c in items)
+        if total > budget:
+            return "", (
+                f"входы этапа {stage} не влезают в бюджет вложений: "
+                f"{total // 1024} КБ при agent.max_inline_kb: {self.cfg.max_inline_kb}. "
+                "Поднимите бюджет или используйте agent.mode: stdout/tools")
+        blocks = "\n".join(
+            f"===INPUT: {label}===\n{content.rstrip()}\n===END INPUT===\n"
+            for label, content in items)
+        return (
+            "\n\n## Приложенные входы (режим без доступа к файловой системе)\n\n"
+            "Ты работаешь БЕЗ доступа к файловой системе: не читай и не записывай "
+            "файлы, не вызывай инструменты. Все входы задания приложены ниже "
+            "INPUT-блоками; упомянутые в задании пути читай из них.\n\n"
+            + blocks), ""
 
     # ── валидация выходов ──────────────────────────────────────────────────
 
@@ -411,24 +590,39 @@ class Runner:
             return out
 
         prompt_text = self.render_prompt(stage, variables)
+        if self.cfg.agent_mode in ("stdout", "text"):
+            prompt_text += self.stdout_protocol(out_files)
+        if self.cfg.agent_mode == "text":
+            inline, inline_err = self.inline_inputs(stage, variables)
+            if inline_err:
+                self.log.write(f"[{tag}] ЭСКАЛАЦИЯ без вызова агента: {inline_err}")
+                out = TaskOutcome(tag=tag, status="эскалация", errors=inline_err)
+                self.outcomes.append(out)
+                return out
+            prompt_text += inline
         tokens_total = 0
         errors_text = ""
         for attempt in range(self.cfg.retries + 1):
             attempt_tag = tag if attempt == 0 else f"{tag}.retry{attempt}"
             text = prompt_text
             if attempt > 0:
+                fix_hint = ("Исправь артефакт и выведи его целиком заново "
+                            "FILE-блоком." if self.cfg.agent_mode != "tools"
+                            else "Исправь артефакт и перезапиши его целиком "
+                                 "по тому же пути.")
                 text = (
                     prompt_text
                     + "\n\n## ИСПРАВЛЕНИЕ ОШИБОК (попытка "
                     + f"{attempt} из {self.cfg.retries})\n\n"
                     + "Предыдущий выход не прошёл механические проверки "
-                    + "детерминированного слоя. Исправь артефакт и перезапиши "
-                    + "его целиком по тому же пути. Ошибки:\n\n"
+                    + "детерминированного слоя. " + fix_hint + " Ошибки:\n\n"
                     + errors_text + "\n"
                 )
-            tokens = self.call_agent(stage, attempt_tag, text, out_files[0])
+            tokens, agent_stdout = self.call_agent(stage, attempt_tag, text, out_files[0])
             if tokens:
                 tokens_total += tokens
+            if self.cfg.agent_mode in ("stdout", "text"):
+                self.write_outputs_from_stdout(attempt_tag, agent_stdout, out_files)
             results = self.validate_stage_output(stage, out_files, module)
             errors_text = render_for_retry(results)
             warn_count = sum(len(r.warnings) for r in results)
@@ -575,6 +769,10 @@ class Runner:
                 f" = {report['share_pct']}% — {out_md} (пороги не калибруются, v3.1)")
 
     def stage_89(self) -> None:
+        if self.cfg.agent_mode == "text":
+            self.log.write("[89] отработка инструкций требует исполнения примеров — "
+                           "в режиме agent.mode: text этап недоступен, пропуск")
+            return
         out = self.ws / "validation" / "docs_instructions.md"
         v = self.base_variables()
         v["OUT_FILE"] = str(out)

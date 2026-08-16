@@ -50,7 +50,7 @@ def canned_for(out_file: Path) -> list[tuple[Path, Path]]:
         return [(CANNED / "domain.yaml", out_file)]
     if parent == "inverse" and name.endswith(".predictions.yaml"):
         return [(CANNED / "inverse" / name, out_file)]
-    if name == "api.openapi.yaml":
+    if name in ("api.openapi.yaml", "api.cli.yaml"):
         # HTTP-границы у фикстуры нет — агент пишет api.cli.yaml
         return [(CANNED / "api.cli.yaml", out_file.parent / "api.cli.yaml")]
     if name == "flows.md":
@@ -60,9 +60,13 @@ def canned_for(out_file: Path) -> list[tuple[Path, Path]]:
     if name == "SRS.md":
         return [(CANNED / "SRS.md", out_file),
                 (CANNED / "traceability.csv", out_file.parent / "traceability.csv")]
+    if name == "traceability.csv":
+        return [(CANNED / "traceability.csv", out_file)]
     if name == "validation.csv":
         return [(CANNED / "validation.csv", out_file),
                 (CANNED / "validation.md", out_file.parent / "validation.md")]
+    if name == "validation.md":
+        return [(CANNED / "validation.md", out_file)]
     raise SystemExit(f"мок-агент не знает артефакта {out_file}")
 
 
