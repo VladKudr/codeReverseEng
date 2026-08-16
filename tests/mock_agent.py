@@ -67,6 +67,8 @@ def canned_for(out_file: Path) -> list[tuple[Path, Path]]:
                 (CANNED / "validation.md", out_file.parent / "validation.md")]
     if name == "validation.md":
         return [(CANNED / "validation.md", out_file)]
+    if parent == "answers" and name.startswith("answer_"):
+        return [(CANNED / "answer.md", out_file)]
     raise SystemExit(f"мок-агент не знает артефакта {out_file}")
 
 

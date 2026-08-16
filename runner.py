@@ -491,6 +491,14 @@ class Runner:
         if stage == "92":
             p = Path(variables["STATEMENTS_FILE"])
             return [(str(p), read(p))]
+        if stage == "93":
+            # вопрос к базе знаний: вся база, без исходников — точечная сверка
+            # с кодом в режиме text недоступна, о чём ответ честно скажет
+            return (ws_glob("final/SRS.md") + ws_glob("final/traceability.csv")
+                    + ws_glob("final/stories.md") + ws_glob("integration/flows.md")
+                    + ws_glob("inventory/*.yaml") + ws_glob("extracts/*/modules/*.yaml")
+                    + ws_glob("extracts/*/domain.yaml") + ws_glob("extracts/*/api.*.yaml")
+                    + ws_glob("extracts/*/rules/*.yaml"))
         return None  # 89 и прочие исполняемые этапы в text не поддерживаются
 
     def inline_inputs(self, stage: str, variables: dict[str, str]) -> tuple[str, str]:
@@ -832,6 +840,30 @@ class Runner:
                            "возвращаются на этап 4 (исправлять правила по коду, "
                            "а не вердикты)")
 
+    # ── вопросы к базе знаний (--ask) ──────────────────────────────────────
+
+    def ask(self, question: str) -> int:
+        """Один вопрос через промпт 93: артефакты — источник истины,
+        ответ — утверждения со ссылками на rule_id и файл:строка."""
+        if not self.cfg.agent_command.strip():
+            self.log.write(
+                "ОСТАНОВ: agent.command в config.yaml не заполнен — --ask "
+                "требует настроенного CLI-агента (см. prompts/RUNBOOK.md).")
+            return 2
+        answers = self.ws / "answers"
+        answers.mkdir(parents=True, exist_ok=True)
+        n = len(list(answers.glob("answer_*.md"))) + 1
+        out = answers / f"answer_{n:03d}.md"
+        v = self.base_variables()
+        v["QUESTION"] = question
+        v["OUT_FILE"] = str(out)
+        outcome = self.run_task("93", f"93_ask_{n:03d}", v, [out])
+        if out.is_file():
+            print("\n" + "─" * 60)
+            print(out.read_text(encoding="utf-8"))
+            self.log.write(f"[93] ответ: {out}")
+        return 0 if outcome.status != "эскалация" else 1
+
     # ── полнота и сводка ───────────────────────────────────────────────────
 
     def coverage_report(self, modules: list[str]) -> dict | None:
@@ -962,10 +994,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--raise-tier", nargs=2, metavar=("ПУТЬ", "ЯРУС"),
                     help="поднять ярус зоны (L0|L1|L2) и догнать недостающие "
                          "этапы; готовые артефакты нижних ярусов не перегенерируются")
+    ap.add_argument("--ask", metavar="ВОПРОС",
+                    help="вопрос к построенной базе знаний (промпт 93): "
+                         "ответ по артефактам со ссылками, без сканирования репо")
     args = ap.parse_args(argv)
 
     cfg = Config.load(args.config)
     runner = Runner(cfg, force=args.force, dry_run=args.dry_run)
+    if args.ask:
+        return runner.ask(args.ask)
     if args.raise_tier:
         path, tier = args.raise_tier
         runner.raise_tier(path, tier)
