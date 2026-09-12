@@ -15,7 +15,8 @@ import numpy as np
 from .appearance import AppearanceEncoder
 from .detection import Detection, Detector, filter_detections
 from .geometry import iou_matrix, point_in_box
-from .jersey import NumberRead, NumberReader, NumberVotes, ScriptedNumberReader, torso_crop
+from .jersey import NumberRead, NumberReader, ScriptedNumberReader, torso_crop
+from .metrics import ErrorLog, RunMetrics
 from .multitracker import MultiTracker, MultiTrackerConfig, Track, TrackState
 from .target import TargetConfig, TargetFollower, TargetObservation, TargetState
 from .team import TeamClassifier, torso_color
@@ -44,6 +45,9 @@ class PipelineConfig:
     number_lost_every: int = 2          # OCR кандидатов раз в N кадров в состоянии LOST
     number_max_candidates: int = 6
     pass_lost_tracks: bool = True       # отдавать цели и потерянные треки мультитрекера
+    fps: float = 30.0                   # для времени в метриках и журнале ошибок
+    tolerate_errors: bool = True        # исключение детектора/кодировщика/OCR -> запись в журнал,
+                                        # кадр обрабатывается как пустой; False — исключение наружу
 
 
 @dataclass
@@ -68,6 +72,9 @@ class Pipeline:
         self.teams = TeamClassifier() if self.cfg.use_team else None
         self.frame_idx = -1
         self._init_deadline: Optional[int] = None
+        self.errors = ErrorLog(self.cfg.fps)
+        self.metrics = RunMetrics(frame_size, self.cfg.fps, self.errors, det_high=self.cfg.tracker.det_high)
+        self._init_failed = False
 
     # --- выбор цели --------------------------------------------------------
     def _try_init(self, tracks: list[Track], features: dict[int, np.ndarray]) -> Optional[TargetObservation]:
@@ -89,10 +96,12 @@ class Pipeline:
                 # при вложенных рамках берём меньшую: клик точнее попадает в ближнего игрока
                 pick = min(inside, key=lambda t: t.height)
         if pick is None:
-            if self.frame_idx > self._init_deadline:
-                raise RuntimeError(
-                    f"Цель не найдена: ни один трек не совпал с init.box/init.point за {spec.max_wait_frames} кадров"
-                )
+            if self.frame_idx > self._init_deadline and not self._init_failed:
+                self._init_failed = True
+                msg = f"Цель не найдена: ни один трек не совпал с init.box/init.point за {spec.max_wait_frames} кадров"
+                self.errors.add(self.frame_idx, "init_failed", msg, box=spec.box, point=spec.point)
+                if not self.cfg.tolerate_errors:
+                    raise RuntimeError(msg)
             return None
         return self.follower.lock(pick, features.get(pick.track_id), self.frame_idx, number=spec.number)
 
@@ -111,14 +120,29 @@ class Pipeline:
         elif state == TargetState.LOST and self.frame_idx % self.cfg.number_lost_every == 0:
             targets = sorted((t for t in tracks if t.detected_now), key=lambda t: -t.height)[: self.cfg.number_max_candidates]
         out = {}
+        attempted = 0
         for t in targets:
             crop = torso_crop(frame, t.last_box if t.last_box is not None else t.box)
             if crop is None:
                 continue
-            r = reader.read(crop)
+            attempted += 1
+            r = self._guard("ocr", lambda: reader.read(crop), None)
             if r is not None:
                 out[t.track_id] = r
+            else:
+                self.errors.add(self.frame_idx, "ocr_miss", "номер не прочитан", track_id=t.track_id)
+        self.metrics.observe_ocr(attempted, len(out))
         return out
+
+    def _guard(self, where: str, fn, fallback):
+        """Вызов нейросетевого компонента с перехватом исключений в журнал."""
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - любое исключение компонента фиксируем
+            self.errors.exception(self.frame_idx, where, exc)
+            if not self.cfg.tolerate_errors:
+                raise
+            return fallback
 
     def _team_labels(self, frame: np.ndarray, tracks: list[Track]) -> dict[int, int]:
         if self.teams is None:
@@ -139,8 +163,14 @@ class Pipeline:
     def process(self, frame: np.ndarray) -> FrameResult:
         t0 = time.perf_counter()
         self.frame_idx += 1
-        dets = filter_detections(self.detector.detect(frame), self.cfg.min_det_height, self.cfg.max_det_aspect)
-        feats = self.encoder.encode(frame, [d.box for d in dets]) if dets else np.zeros((0, self.encoder.dim), np.float32)
+        raw = self._guard("detector", lambda: self.detector.detect(frame), [])
+        dets = filter_detections(raw, self.cfg.min_det_height, self.cfg.max_det_aspect)
+        if dets:
+            feats = self._guard("encoder", lambda: self.encoder.encode(frame, [d.box for d in dets]), None)
+            if feats is None:
+                feats = np.zeros((len(dets), self.encoder.dim), np.float32)
+        else:
+            feats = np.zeros((0, self.encoder.dim), np.float32)
         confirmed = self.mot.update(dets, feats, frame_idx=self.frame_idx)
         tracks = [t for t in self.mot.tracks if t.state in (TrackState.CONFIRMED, TrackState.LOST)] if self.cfg.pass_lost_tracks else confirmed
         features = {t.track_id: t.last_feature for t in tracks if t.detected_now and t.last_feature is not None}
@@ -155,7 +185,9 @@ class Pipeline:
         else:
             # в кадре захвата тоже учитываем номер/команду
             self.follower.step(self.frame_idx, tracks, features, numbers, team_labels)
-        return FrameResult(self.frame_idx, obs, tracks, dets, (time.perf_counter() - t0) * 1000)
+        res = FrameResult(self.frame_idx, obs, tracks, dets, (time.perf_counter() - t0) * 1000)
+        self.metrics.observe(self.frame_idx, dets, tracks, obs, res.elapsed_ms)
+        return res
 
     def run(self, frames: Iterable[np.ndarray], on_frame: Optional[Callable[[np.ndarray, FrameResult], None]] = None) -> list[FrameResult]:
         results = []

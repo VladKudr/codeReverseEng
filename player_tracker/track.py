@@ -12,7 +12,10 @@
   python track.py match.MOV --select --out out/
 
 Выход в --out: track.json (по кадрам), track.csv, events.log, summary.json,
-annotated.mp4 (если не --no-video).
+metrics.json + frame_stats.csv (метрики детекции/слежения/скорости),
+errors.jsonl + errors.md (журнал ошибок), annotated.mp4 (если не --no-video).
+С --truth truth.json|csv дополнительно evaluation.json — сверка с разметкой,
+ошибки wrong_target/missed_target попадают в журнал.
 """
 from __future__ import annotations
 
@@ -25,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracker import export  # noqa: E402
+from tracker.metrics import evaluate, load_truth  # noqa: E402
 from tracker.appearance import CompositeEncoder, PartColorEncoder  # noqa: E402
 from tracker.pipeline import InitSpec, Pipeline, PipelineConfig  # noqa: E402
 from tracker.render import draw  # noqa: E402
@@ -106,6 +110,8 @@ def main(argv=None) -> int:
     ap.add_argument("--no-video", action="store_true", help="не писать annotated.mp4")
     ap.add_argument("--tonemap", choices=["auto", "on", "off"], default="auto")
     ap.add_argument("--detector", choices=["yolo"], default="yolo")
+    ap.add_argument("--truth", help="разметка цели (JSON/CSV, координаты исходного кадра) для оценки качества")
+    ap.add_argument("--strict", action="store_true", help="исключения компонентов останавливают прогон, а не пишутся в журнал")
     args = ap.parse_args(argv)
 
     info = probe(args.video)
@@ -134,7 +140,7 @@ def main(argv=None) -> int:
     from tracker.detection import YoloDetector
 
     detector = YoloDetector(args.weights, imgsz=args.imgsz, device=args.device)
-    cfg = PipelineConfig(init=init, use_team=not args.no_team)
+    cfg = PipelineConfig(init=init, use_team=not args.no_team, fps=source.fps, tolerate_errors=not args.strict)
     pipe = Pipeline((source.width, source.height), detector, build_encoder(args.encoder), build_reader(args.ocr), cfg)
 
     out = Path(args.out)
@@ -176,7 +182,16 @@ def main(argv=None) -> int:
     export.write_events(out / "events.log", records, source.fps)
     summary = export.summarize(records)
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
+    if args.truth:
+        truth = load_truth(args.truth)
+        # разметка — в исходных координатах, records уже пересчитаны в них
+        ev = evaluate(records, truth, pipe.errors)
+        (out / "evaluation.json").write_text(json.dumps(ev, ensure_ascii=False, indent=1), encoding="utf-8")
+        print("Оценка по разметке:", json.dumps(ev, ensure_ascii=False))
+    metrics = pipe.metrics.write(out)
     print("Итог:", json.dumps(summary, ensure_ascii=False))
+    print("Метрики детекции:", json.dumps(metrics["detection"], ensure_ascii=False))
+    print("Ошибки:", json.dumps(metrics["errors"], ensure_ascii=False), f"-> {out / 'errors.md'}")
     return 0
 
 

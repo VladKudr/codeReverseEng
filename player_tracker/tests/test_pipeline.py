@@ -104,11 +104,16 @@ def test_init_by_box_and_team_learned():
     assert pipe.follower.model.team == a
 
 
-def test_init_timeout():
+def test_init_timeout_logged_or_raised():
     import pytest
 
     frames, script, _ = scenario(30)
     cfg = PipelineConfig(init=InitSpec(frame=0, point=(5, 5), max_wait_frames=5))
+    pipe = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg)
+    results = pipe.run(frames)
+    assert all(r.observation.state == TargetState.IDLE for r in results)
+    assert pipe.errors.counts() == {"init_failed": 1}
+    cfg = PipelineConfig(init=InitSpec(frame=0, point=(5, 5), max_wait_frames=5), tolerate_errors=False)
     pipe = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg)
     with pytest.raises(RuntimeError):
         pipe.run(frames)
