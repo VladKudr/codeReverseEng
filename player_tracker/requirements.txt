@@ -1,0 +1,15 @@
+# Ядро (детерминированная часть: трекер, модель цели, видео) — без нейросетей
+numpy
+opencv-python-headless    # или opencv-python, если нужен --select (окно с кликом)
+scipy                     # венгерский алгоритм; без него — жадная ассоциация
+imageio-ffmpeg            # статический ffmpeg для HEVC/HDR-роликов iPhone
+
+# Детектор (обязателен для реального видео)
+ultralytics               # YOLOv8/11; тянет torch. На Mac: pip install torch torchvision — MPS
+
+# Необязательно
+# torchreid               # нейросетевой ReID (--encoder osnet): точнее цветовых гистограмм
+# easyocr                 # чтение номеров (--ocr easyocr)
+
+# Тесты
+pytest
