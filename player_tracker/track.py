@@ -32,7 +32,7 @@ from tracker.metrics import evaluate, load_truth  # noqa: E402
 from tracker.appearance import CompositeEncoder, PartColorEncoder  # noqa: E402
 from tracker.pipeline import InitSpec, Pipeline, PipelineConfig  # noqa: E402
 from tracker.render import draw  # noqa: E402
-from tracker.video import FrameSource, probe  # noqa: E402
+from tracker.video import FrameSource, FrameWriter, probe  # noqa: E402
 
 
 def parse_floats(s: str, n: int) -> tuple[float, ...]:
@@ -147,10 +147,7 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     writer = None
     if not args.no_video:
-        import cv2
-
-        writer = cv2.VideoWriter(str(out / "annotated.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), source.fps,
-                                 (source.width, source.height))
+        writer = FrameWriter(out / "annotated.mp4", source.width, source.height, source.fps)
     records = []
     t_start = time.perf_counter()
     last_print = t_start
@@ -172,7 +169,7 @@ def main(argv=None) -> int:
         pipe.run(source, on_frame)
     finally:
         if writer is not None:
-            writer.release()
+            writer.close()
 
     meta = {"video": str(args.video), "fps": source.fps, "frame_size": [info.width, info.height],
             "process_size": [source.width, source.height], "scale": scale, "init": vars(init),

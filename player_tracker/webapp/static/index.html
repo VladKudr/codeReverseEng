@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>player_tracker — слежение за игроком</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>player_tracker</h1>
+  <span class="sub">слежение за одним игроком на видео с iPhone · повторный захват · метрики · ошибки</span>
+</header>
+
+<main>
+  <aside id="sidebar">
+    <section class="card">
+      <h2>1. Ролик</h2>
+      <form id="upload-form">
+        <input type="file" id="upload-file" accept="video/*,.mov,.MOV,.mp4,.m4v" required>
+        <button type="submit" id="upload-btn">Загрузить</button>
+        <div id="upload-progress" class="progress hidden"><div class="bar"></div></div>
+      </form>
+      <ul id="video-list" class="list"></ul>
+    </section>
+    <section class="card">
+      <h2>3. Задачи</h2>
+      <ul id="job-list" class="list"></ul>
+    </section>
+  </aside>
+
+  <section id="content">
+    <section class="card" id="select-card">
+      <h2>2. Выбор игрока</h2>
+      <p class="hint" id="select-hint">Выберите ролик слева.</p>
+      <div id="select-body" class="hidden">
+        <div class="row">
+          <label>Момент, с <input type="number" id="sel-time" min="0" step="0.5" value="0"></label>
+          <input type="range" id="sel-slider" min="0" max="10" step="0.5" value="0">
+          <span id="video-meta" class="meta"></span>
+        </div>
+        <div id="frame-wrap">
+          <img id="frame-img" alt="кадр">
+          <div id="marker" class="hidden"></div>
+        </div>
+        <p class="hint">Кликните по игроку на кадре. Точка переводится в координаты исходного кадра.</p>
+        <div class="row">
+          <label>Точка <input type="text" id="sel-point" readonly placeholder="—"></label>
+          <label>Номер <input type="text" id="sel-number" placeholder="напр. 10" size="4"></label>
+        </div>
+        <details>
+          <summary>Параметры</summary>
+          <div class="grid">
+            <label>Ширина обработки <input type="number" id="opt-width" value="1280" min="0" step="64"></label>
+            <label>Веса YOLO <input type="text" id="opt-weights" value="yolov8n.pt"></label>
+            <label>imgsz <input type="number" id="opt-imgsz" value="1280" min="320" step="32"></label>
+            <label>Устройство <input type="text" id="opt-device" placeholder="auto / cpu / mps / cuda:0"></label>
+            <label>Внешность <select id="opt-encoder"><option value="color">цвет по частям тела</option><option value="osnet">OSNet + цвет</option></select></label>
+            <label>OCR номера <select id="opt-ocr"><option value="none">нет</option><option value="easyocr">easyocr</option></select></label>
+            <label>Команды по цвету <input type="checkbox" id="opt-team" checked></label>
+            <label>HDR-тонмаппинг <select id="opt-tonemap"><option value="">авто</option><option value="true">вкл</option><option value="false">выкл</option></select></label>
+            <label>Начало, с <input type="number" id="opt-start" value="0" min="0" step="0.5"></label>
+            <label>Макс. кадров <input type="number" id="opt-maxframes" placeholder="все" min="1"></label>
+            <label>Писать видео <input type="checkbox" id="opt-render" checked></label>
+          </div>
+        </details>
+        <button id="start-btn" disabled>Запустить слежение</button>
+        <span id="start-msg" class="msg"></span>
+      </div>
+    </section>
+
+    <section class="card hidden" id="job-card">
+      <h2>4. Результат <span id="job-title" class="meta"></span></h2>
+      <div class="row">
+        <span id="job-status" class="badge"></span>
+        <div class="progress"><div class="bar" id="job-bar"></div></div>
+        <span id="job-progress" class="meta"></span>
+        <button id="cancel-btn" class="secondary">Остановить</button>
+        <button id="delete-btn" class="secondary">Удалить</button>
+      </div>
+      <pre id="job-error" class="error hidden"></pre>
+
+      <div id="result-body" class="hidden">
+        <video id="player" controls playsinline></video>
+        <canvas id="timeline" height="34"></canvas>
+        <div class="legend">
+          <span><i class="sw active"></i>на треке</span><span><i class="sw contested"></i>перекрыта</span>
+          <span><i class="sw lost"></i>потеряна</span><span><i class="sw idle"></i>не выбрана</span>
+          <span><i class="sw ambiguous"></i>неоднозначно</span>
+        </div>
+        <div class="cols">
+          <div>
+            <h3>События</h3>
+            <ul id="events" class="list small"></ul>
+          </div>
+          <div>
+            <h3>Итог</h3>
+            <table id="summary" class="kv"></table>
+          </div>
+        </div>
+        <h3>Метрики</h3>
+        <div id="metrics" class="cols"></div>
+        <h3>Ошибки <span id="error-counts" class="meta"></span></h3>
+        <div id="errors" class="errors"></div>
+        <h3>Оценка по разметке</h3>
+        <form id="truth-form" class="row">
+          <input type="file" id="truth-file" accept=".json,.csv" required>
+          <button type="submit">Оценить</button>
+          <span class="hint">JSON {"frames": {"12": [x1,y1,x2,y2], "13": null}} или CSV frame,x1,y1,x2,y2 в координатах исходного кадра</span>
+        </form>
+        <table id="evaluation" class="kv"></table>
+        <h3>Файлы</h3>
+        <p id="downloads" class="links"></p>
+      </div>
+    </section>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

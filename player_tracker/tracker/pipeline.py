@@ -196,7 +196,15 @@ class Pipeline:
             results.append(res)
             if on_frame is not None:
                 on_frame(frame, res)
+        self.finalize()
         return results
+
+    def finalize(self) -> None:
+        """Конец ролика: если цель так и не была выбрана, это ошибка прогона."""
+        if self.follower.state == TargetState.IDLE and not self._init_failed:
+            self._init_failed = True
+            self.errors.add(self.frame_idx, "init_failed", "ролик закончился, а цель по стартовым координатам не найдена",
+                            box=self.cfg.init.box, point=self.cfg.init.point)
 
     # --- ручное вмешательство ---------------------------------------------------
     def reselect(self, track_id: int) -> TargetObservation:

@@ -304,3 +304,76 @@ class FrameSource:
             raise RuntimeError("ffmpeg не найден: pip install imageio-ffmpeg")
         warnings.warn("ffmpeg не найден — читаем через OpenCV (без поворота/тонмаппинга HDR)")
         yield from self._iter_cv2()
+
+
+class FrameWriter:
+    """Запись кадров BGR в H.264 (.mp4), пригодный для браузера и iPhone.
+
+    `cv2.VideoWriter` с mp4v даёт MPEG-4 Part 2, который браузеры не играют.
+    Пишем через ffmpeg (libx264, yuv420p, faststart); если ffmpeg недоступен
+    или без libx264 — откат на OpenCV с предупреждением.
+    """
+
+    def __init__(self, path: str | Path, width: int, height: int, fps: float, crf: int = 23, preset: str = "veryfast"):
+        self.path = Path(path)
+        self.width, self.height, self.fps = int(width), int(height), float(fps) or 30.0
+        self.frames = 0
+        self._proc = None
+        self._cv2_writer = None
+        exe = ffmpeg_exe()
+        if exe:
+            cmd = [exe, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                   "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{self.width}x{self.height}", "-r", f"{self.fps:.6f}",
+                   "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
+                   "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(self.path)]
+            try:
+                self._proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            except OSError:
+                self._proc = None
+        if self._proc is None:
+            import cv2
+
+            warnings.warn("ffmpeg недоступен — annotated.mp4 пишется через OpenCV (mp4v, браузеры не играют)")
+            self._cv2_writer = cv2.VideoWriter(str(self.path), cv2.VideoWriter_fourcc(*"mp4v"), self.fps, (self.width, self.height))
+
+    def write(self, frame: np.ndarray) -> None:
+        if frame.shape[1] != self.width or frame.shape[0] != self.height:
+            import cv2
+
+            frame = cv2.resize(frame, (self.width, self.height))
+        if self._proc is not None:
+            try:
+                self._proc.stdin.write(np.ascontiguousarray(frame).tobytes())
+            except BrokenPipeError as exc:
+                err = self._proc.stderr.read().decode(errors="replace")
+                raise RuntimeError(f"ffmpeg прервал запись {self.path}: {err.strip()[:400]}") from exc
+        else:
+            self._cv2_writer.write(frame)
+        self.frames += 1
+
+    def close(self) -> None:
+        if self._proc is not None:
+            self._proc.stdin.close()
+            err = self._proc.stderr.read().decode(errors="replace")
+            code = self._proc.wait()
+            self._proc = None
+            if code != 0:
+                raise RuntimeError(f"ffmpeg завершился с кодом {code}: {err.strip()[:400]}")
+        elif self._cv2_writer is not None:
+            self._cv2_writer.release()
+            self._cv2_writer = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+
+def extract_frame(path: str | Path, at_sec: float = 0.0, max_width: Optional[int] = None,
+                  tonemap: Optional[bool] = None) -> tuple[np.ndarray, float]:
+    """Один кадр ролика (BGR) в момент `at_sec` и масштаб относительно исходного кадра."""
+    src = FrameSource(path, max_width=max_width, tonemap=tonemap, start_sec=at_sec, max_frames=1)
+    for frame in src:
+        return frame, src.scale
+    raise RuntimeError(f"Кадр в момент {at_sec:.2f}s не прочитан: {path}")

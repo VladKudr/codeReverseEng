@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 *.pt
 player_tracker/out/
+player_tracker/data/

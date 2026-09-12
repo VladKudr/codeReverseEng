@@ -7,9 +7,15 @@ imageio-ffmpeg            # статический ffmpeg для HEVC/HDR-рол
 # Детектор (обязателен для реального видео)
 ultralytics               # YOLOv8/11; тянет torch. На Mac: pip install torch torchvision — MPS
 
+# Веб-приложение (python serve.py)
+fastapi
+uvicorn
+python-multipart
+
 # Необязательно
 # torchreid               # нейросетевой ReID (--encoder osnet): точнее цветовых гистограмм
 # easyocr                 # чтение номеров (--ocr easyocr)
 
 # Тесты
 pytest
+httpx                     # TestClient для тестов веб-приложения
