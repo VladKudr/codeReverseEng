@@ -34,6 +34,10 @@
       <h2>2. Выбор игрока</h2>
       <p class="hint" id="select-hint">Выберите ролик слева.</p>
       <div id="select-body" class="hidden">
+        <div id="existing" class="existing hidden">
+          <b>Для этого ролика уже есть</b> <span class="meta">— откройте, чтобы не прогонять заново</span>
+          <ul id="existing-list" class="list small"></ul>
+        </div>
         <div class="row">
           <label>Момент, с <input type="number" id="sel-time" min="0" step="0.5" value="0"></label>
           <input type="range" id="sel-slider" min="0" max="10" step="0.5" value="0">
@@ -48,11 +52,25 @@
           <label>Точка <input type="text" id="sel-point" readonly placeholder="—"></label>
           <label>Номер <input type="text" id="sel-number" placeholder="напр. 10" size="4"></label>
         </div>
+        <div class="survey">
+          <h3>Об игроке <span class="meta">— учитывается в метриках и ИИ-разборе</span></h3>
+          <div class="grid">
+            <label>Возраст, лет * <input type="number" id="q-age" min="4" max="60" step="1" placeholder="напр. 11"></label>
+            <label>Позиция * <select id="q-position"><option value="">— выберите —</option></select></label>
+            <label>Формат игры * <select id="q-format"><option value="">— выберите —</option></select></label>
+            <label>Рост, м <input type="number" id="q-height" min="0.9" max="2.2" step="0.01" placeholder="если не знаете — по возрасту"></label>
+          </div>
+          <div class="grid">
+            <label id="q-position-note-wrap" class="hidden">Какая позиция <input id="q-position-note" placeholder="напр. правый вингер, свободный"></label>
+            <label id="q-format-note-wrap" class="hidden">Какой формат <input id="q-format-note" placeholder="напр. 9×9 + вратарь, поле 70×50"></label>
+          </div>
+          <p class="hint" id="q-why">Возраст задаёт пороги скорости и типичный рост (масштаб метров), позиция — по чему судить игрока, формат — размер поля и плотность игры.</p>
+        </div>
         <details>
           <summary>Параметры</summary>
           <div class="grid">
             <label>Ширина обработки <input type="number" id="opt-width" value="1280" min="0" step="64"></label>
-            <label>Веса YOLO <input type="text" id="opt-weights" value="yolov8n.pt"></label>
+            <label>Веса YOLO <input type="text" id="opt-weights" value="yolo11s.pt" title="yolo11n — быстрее, yolo11x — точнее и в ~7 раз медленнее"></label>
             <label>imgsz <input type="number" id="opt-imgsz" value="1280" min="320" step="32"></label>
             <label>Устройство <input type="text" id="opt-device" placeholder="auto / cpu / mps / cuda:0"></label>
             <label>Внешность <select id="opt-encoder"><option value="color">цвет по частям тела</option><option value="osnet">OSNet + цвет</option></select></label>
@@ -62,6 +80,8 @@
             <label>Начало, с <input type="number" id="opt-start" value="0" min="0" step="0.5"></label>
             <label>Макс. кадров <input type="number" id="opt-maxframes" placeholder="все" min="1"></label>
             <label>Писать видео <input type="checkbox" id="opt-render" checked></label>
+            <label title="мяч мелкий: кадр дополнительно режется на увеличенные плитки — мяч находится вдвое чаще, но прогон в 3–4 раза дольше">Искать мяч на плитках <input type="checkbox" id="opt-ball" checked></label>
+            <label title="после прогона досмотреть ролик целиком: убрать задержку повторного захвата и поздно замеченные подмены">Уточнить по всему ролику <input type="checkbox" id="opt-refine" checked></label>
           </div>
         </details>
         <button id="start-btn" disabled>Запустить слежение</button>
@@ -81,12 +101,79 @@
       <pre id="job-error" class="error hidden"></pre>
 
       <div id="result-body" class="hidden">
-        <video id="player" controls playsinline></video>
+        <div class="watch">
+          <div>
+            <div class="video-wrap" id="video-wrap">
+              <video id="player" controls playsinline></video>
+              <canvas id="overlay"></canvas>
+              <div id="overlay-click" title="щелчок по рамке — выбрать человека, второй щелчок — выключить или вернуть"></div>
+            </div>
+            <div class="legend vlegend">
+              <span><i class="box" style="border-color:#22c55e"></i>цель</span>
+              <span><i class="box" style="border-color:#ff1a1a"></i>выбран</span>
+              <span><i class="box" style="border-color:rgba(248,113,113,.6)"></i>свои</span>
+              <span><i class="box" style="border-color:rgba(255,255,255,.9);background:#374151"></i>соперник</span>
+              <span><i class="box" style="border-color:rgba(148,163,184,.8)"></i>взрослые / не определены</span>
+              <span><i class="box" style="border-color:rgba(156,163,175,.45);border-style:dashed"></i>выключен</span>
+              <label class="inline"><input type="checkbox" id="overlay-on" checked> рамки на видео</label>
+              <label class="inline"><input type="checkbox" id="overlay-field" checked> линии поля</label>
+            </div>
+            <div id="pick-msg" class="pick-msg hidden"></div>
+          </div>
+          <div id="board" class="board">
+            <div class="row board-head">
+              <b>Тактическая доска</b>
+              <label class="inline">Следы <select id="board-trail"><option value="0">нет</option><option value="3" selected>3 с</option><option value="8">8 с</option><option value="20">20 с</option></select></label>
+              <label class="inline"><input type="checkbox" id="board-all" checked> все игроки</label>
+              <label class="inline"><input type="checkbox" id="board-ids" checked> номера</label>
+              <label class="inline" title="выключенные показываются бледно — клик по такой точке возвращает человека в игру"><input type="checkbox" id="board-show-off"> показать выключенных</label>
+            </div>
+            <canvas id="board-canvas" width="640" height="460" title="клик по человеку — выключить (запасной, тренер, зритель); номера те же, что на видео"></canvas>
+            <input type="range" id="board-time" min="0" max="1" step="0.1" value="0">
+            <div id="board-legend" class="legend"></div>
+            <div class="row"><label class="inline">В игре
+              <select id="roster-mode">
+                <option value="all">все, кроме выключенных</option>
+                <option value="marked">только отмеченные мной (и похожие на них)</option>
+              </select></label></div>
+            <div id="board-off" class="off"></div>
+            <div class="row"><span id="board-msg" class="msg"></span><button id="board-build" class="secondary hidden">Построить доску</button></div>
+          </div>
+        </div>
         <canvas id="timeline" height="34"></canvas>
         <div class="legend">
           <span><i class="sw active"></i>на треке</span><span><i class="sw contested"></i>перекрыта</span>
           <span><i class="sw lost"></i>потеряна</span><span><i class="sw idle"></i>не выбрана</span>
-          <span><i class="sw ambiguous"></i>неоднозначно</span>
+          <span><i class="sw ambiguous"></i>неоднозначно</span><span><i class="sw fixmark"></i>поправка</span>
+        </div>
+        <div class="fix">
+          <div class="row">
+            <button id="fix-open">Исправить цель в этом кадре</button>
+            <span class="hint">Поставьте видео на паузу там, где рамка ушла не на того игрока или цель вернулась в кадр, — слежение перестроится с этого кадра до конца.</span>
+          </div>
+          <div id="fix-panel" class="hidden">
+            <div class="row">
+              <button class="secondary step" data-step="-10">−10</button>
+              <button class="secondary step" data-step="-1">−1</button>
+              <b id="fix-frame-label">кадр —</b>
+              <button class="secondary step" data-step="1">+1</button>
+              <button class="secondary step" data-step="10">+10</button>
+              <label class="inline">Масштаб <select id="fix-zoom"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option></select></label>
+              <span id="fix-state" class="meta"></span>
+            </div>
+            <div id="fix-wrap"><canvas id="fix-canvas"></canvas></div>
+            <p class="hint">Кликните по цели. Серые рамки — найденные игроки, зелёная — где цель сейчас по результату, голубая — ваш выбор.</p>
+            <div class="row">
+              <button id="fix-here" disabled>Цель здесь — перестроить дальше</button>
+              <button id="fix-absent" class="secondary">Цели нет в кадре — перестроить дальше</button>
+              <button id="fix-close" class="secondary">Закрыть</button>
+              <span id="fix-msg" class="msg"></span>
+            </div>
+          </div>
+          <div id="fix-list-wrap" class="hidden">
+            <h3>Поправки</h3>
+            <ul id="corrections" class="list small"></ul>
+          </div>
         </div>
         <div class="cols">
           <div>
@@ -98,7 +185,123 @@
             <table id="summary" class="kv"></table>
           </div>
         </div>
-        <h3>Метрики</h3>
+        <h3>Схема поля <span class="meta">— отметьте до разбора: где камера, куда смотрит в начале ролика, где свои ворота</span></h3>
+        <div class="field-panel">
+          <div class="row">
+            <b>Поле на видео</b>
+            <button id="field-here" class="secondary">Отметить на текущем кадре</button>
+            <span id="field-marks" class="chips"></span>
+            <span class="meta" id="field-frame-label"></span>
+          </div>
+          <div id="field-check" class="field-check hidden"></div>
+          <div id="field-editor" class="hidden">
+            <p class="hint">Перетащите точки 1–4 в углы игровой площадки: <b>1</b> — левый ближний к камере, <b>2</b> — правый ближний,
+              <b>3</b> — правый дальний, <b>4</b> — левый дальний. Угол может быть за краем кадра — тяните точку в серую зону.
+              <b>Голубые точки</b> — где за ролик стояли игроки: поле должно их накрыть. Белые линии — как лягут линии поля.
+              Точная доводка: выберите точку и двигайте стрелками (Shift — по 10).
+              Оператор переходил на другое место — отметьте поле ещё раз на кадре оттуда.</p>
+            <div class="row">
+              <label class="inline">Что отмечаю
+                <select id="field-mode">
+                  <option value="corners">четыре угла поля</option>
+                  <option value="sides">два дальних угла + боковые линии (ближние углы не видны)</option>
+                </select></label>
+              <span class="meta" id="field-mode-hint"></span>
+            </div>
+            <div class="row field-tools">
+              <button id="field-auto" class="secondary" title="поставить углы вокруг места, где играли">Углы по игрокам</button>
+              <button id="field-expand" class="secondary" title="раздвинуть вашу разметку там, где игроки выходят за неё">Раздвинуть по игрокам</button>
+              <label class="inline"><input type="checkbox" id="field-occ" checked> где играли</label>
+              <span class="zoom"><button id="field-zoom-out" class="secondary" title="мельче">−</button><span id="field-zoom-label">100 %</span><button id="field-zoom-in" class="secondary" title="крупнее">+</button></span>
+              <button id="field-full" class="secondary" title="редактор на весь экран">⛶ На весь экран</button>
+            </div>
+            <div id="field-wrap"><canvas id="field-canvas" tabindex="0"></canvas></div>
+            <div class="row">
+              <button id="field-rotate" class="secondary" title="камера за воротами или у другой бровки — поверните соответствие углов">Повернуть соответствие ↻</button>
+              <label class="inline">Свои ворота <select id="field-own"><option value="">не указаны</option><option value="left">ворота А</option><option value="right">ворота Б</option></select></label>
+              <span class="meta">или щёлкните по своим воротам на кадре</span>
+              <label class="inline">Поле, м <input id="field-len" type="number" min="10" max="130" step="1"> × <input id="field-wid" type="number" min="5" max="90" step="1"></label>
+              <span class="meta" id="field-dims-note"></span>
+            </div>
+            <div class="row">
+              <button id="field-save">Сохранить поле</button>
+              <button id="field-reset" class="secondary">Сбросить точки</button>
+              <button id="field-delete" class="secondary">Удалить эту разметку</button>
+              <button id="field-close" class="secondary">Закрыть</button>
+              <span id="field-msg" class="msg"></span>
+            </div>
+          </div>
+        </div>
+        <div id="pitch-hidden-note" class="meta hidden">Положения на поле считаются по разметке поля на видео — схема ниже не нужна.
+          <a href="#" id="pitch-show">Показать схему</a></div>
+        <div class="pitch-panel" id="pitch-panel">
+          <div class="row">
+            <span class="meta">Или отметьте на схеме кликом:</span>
+            <label class="inline"><input type="radio" name="pitch-mode" value="camera" checked> камеру</label>
+            <label class="inline"><input type="radio" name="pitch-mode" value="look"> центр первого кадра</label>
+            <label class="inline"><input type="radio" name="pitch-mode" value="goal"> свои ворота</label>
+            <label class="inline">Поле, м <input id="pitch-len" type="number" min="10" max="130" step="1"> × <input id="pitch-wid" type="number" min="5" max="90" step="1"></label>
+          </div>
+          <div class="pitch-cols">
+            <canvas id="pitch-canvas" width="620" height="440"></canvas>
+            <div><img id="pitch-frame" alt="первый кадр"><p class="hint">Первый кадр ролика — по нему видно, откуда снимали и что в центре кадра.</p></div>
+          </div>
+          <div class="row"><button id="pitch-save">Сохранить схему</button><span id="pitch-msg" class="msg"></span></div>
+          <p class="hint">Схема нужна и тактической доске: по ней игроки и мяч переносятся на поле, а мяч за пределами поля (запасные у забора, у зрителей) отбрасывается.</p>
+        </div>
+        <h3>Метрики игрока</h3>
+        <div class="pm">
+          <div class="row">
+            <label>Рост игрока, м <input type="number" id="pm-height" step="0.05" min="0.9" max="2.2" value="1.5"></label>
+            <label>Камера <select id="pm-fov">
+              <option value="70">основная 1x (≈70°)</option><option value="108">ультраширокая 0.5x (≈108°)</option>
+              <option value="26">телевик 3x (≈26°)</option><option value="17">телевик 5x (≈17°)</option></select></label>
+            <button id="pm-recalc" class="secondary">Пересчитать</button>
+            <button id="rerun-btn" class="secondary hidden">Пересчитать задачу</button>
+            <span id="pm-msg" class="msg"></span>
+          </div>
+          <div id="pm-body" class="hidden">
+            <div class="tiles" id="pm-tiles"></div>
+            <canvas id="pm-speed" height="130"></canvas>
+            <div class="cols">
+              <div><h4>Зоны скорости</h4><table id="pm-zones" class="kv"></table></div>
+              <div><h4>Где был в кадре</h4><canvas id="pm-heat" width="360" height="180"></canvas><table id="pm-thirds" class="kv"></table></div>
+            </div>
+            <div id="pm-pitch" class="cols hidden">
+              <div><h4>На поле</h4><table id="pm-pitch-table" class="kv"></table></div>
+              <div><h4>Где был на поле</h4><canvas id="pm-pitch-heat" width="420" height="300"></canvas></div>
+            </div>
+            <div class="cols">
+              <div><h4>Спринты</h4><ul id="pm-sprints" class="list small"></ul></div>
+              <div><h4>Единоборства</h4><ul id="pm-contacts" class="list small"></ul></div>
+              <div><h4>Мяч рядом</h4><ul id="pm-ball" class="list small"></ul></div>
+            </div>
+            <div id="pm-game" class="cols hidden">
+              <div><h4>Мяч и игра</h4><table id="pm-game-table" class="kv"></table></div>
+            </div>
+            <ul id="pm-notes" class="notes"></ul>
+          </div>
+        </div>
+        <h3>ИИ-разбор</h3>
+        <div class="ai">
+          <div class="grid">
+            <label>Возраст, лет <input type="number" id="ai-age" min="4" max="60" step="1"></label>
+            <label>Позиция <select id="ai-position"><option value="">не указана</option></select></label>
+            <label>Формат игры <select id="ai-format"><option value="">не указан</option></select></label>
+            <label>Форма / номер <input id="ai-color" placeholder="напр. красная, №3"></label>
+          </div>
+          <label>На что обратить внимание <input id="ai-focus" placeholder="напр. открывания без мяча, работа в обороне"></label>
+          <div class="row">
+            <button id="ai-run">Сделать разбор</button>
+            <label class="inline hidden" id="ai-version-wrap">Версия <select id="ai-version"></select></label>
+            <button id="ai-delete" class="secondary hidden">Удалить версию</button>
+            <span id="ai-msg" class="msg"></span>
+          </div>
+          <div id="ai-chat" class="chat"></div>
+          <form id="ai-form" class="row hidden"><input id="ai-question" placeholder="Уточняющий вопрос…"><button type="submit">Спросить</button></form>
+          <p class="hint">В DeepSeek уходят только числа и текст — метрики, эпизоды, события слежения. Видео и кадры не отправляются.</p>
+        </div>
+        <h3>Метрики слежения</h3>
         <div id="metrics" class="cols"></div>
         <h3>Ошибки <span id="error-counts" class="meta"></span></h3>
         <div id="errors" class="errors"></div>
@@ -106,7 +309,7 @@
         <form id="truth-form" class="row">
           <input type="file" id="truth-file" accept=".json,.csv" required>
           <button type="submit">Оценить</button>
-          <span class="hint">JSON {"frames": {"12": [x1,y1,x2,y2], "13": null}} или CSV frame,x1,y1,x2,y2 в координатах исходного кадра</span>
+          <span class="hint">JSON {"frames": {"12": [x1,y1,x2,y2], "13": null}, "partial": {...}, "hidden": [...]} или CSV frame,x1,y1,x2,y2[,state] в координатах исходного кадра</span>
         </form>
         <table id="evaluation" class="kv"></table>
         <h3>Файлы</h3>

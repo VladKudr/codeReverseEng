@@ -51,3 +51,24 @@ def test_composite_concatenates():
     feats = enc.encode(f, [(100, 40, 140, 180)])
     assert feats.shape == (1, enc.dim)
     assert np.isclose(np.linalg.norm(feats[0]), 1.0)
+
+
+def test_thumbnail_sees_layout_that_histograms_miss():
+    """Одинаковые цвета в одинаковых долях, но в разных местах (рукав слева / справа): гистограммы по
+    полосам почти не различают, миниатюра фигуры — различает."""
+    from tracker.appearance import ThumbnailEncoder
+
+    def figure(left, right):
+        f = grass_frame()
+        x1, y1, x2, y2 = 100, 40, 160, 200
+        f[y1:y2, x1:(x1 + x2) // 2] = left
+        f[y1:y2, (x1 + x2) // 2:x2] = right
+        return f, (x1, y1, x2, y2)
+
+    a, box = figure((0, 0, 255), (20, 20, 20))
+    b, _ = figure((20, 20, 20), (0, 0, 255))
+    hist, thumb = PartColorEncoder(center_frac=1.0), ThumbnailEncoder()
+    sim_hist = float(hist.encode(a, [box])[0] @ hist.encode(b, [box])[0])
+    sim_thumb = float(thumb.encode(a, [box])[0] @ thumb.encode(b, [box])[0])
+    assert sim_hist > 0.95
+    assert sim_thumb < 0.0

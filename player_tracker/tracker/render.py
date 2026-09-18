@@ -15,8 +15,21 @@ COLOR_OTHER = (160, 160, 160)
 COLOR_CANDIDATE = (255, 160, 0)
 
 
+def _label(out: np.ndarray, text: str, x: int, y: int, color, scale: float = 0.5) -> None:
+    """Номер на плашке над рамкой: читается на траве и на форме любого цвета."""
+    import cv2
+
+    (w, h), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+    y = max(y, h + base + 2)
+    x = int(min(max(x, 0), out.shape[1] - w - 4))
+    cv2.rectangle(out, (x, y - h - base - 2), (x + w + 4, y), (20, 20, 20), -1)
+    cv2.putText(out, text, (x + 2, y - base), cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1, cv2.LINE_AA)
+
+
 def draw(frame: np.ndarray, obs: TargetObservation, tracks: Optional[list[Track]] = None,
-         show_others: bool = True, thickness: int = 2) -> np.ndarray:
+         show_others: bool = True, thickness: int = 2, numbers: Optional[dict] = None) -> np.ndarray:
+    """numbers — короткие номера треков (`board.display_numbers`): те же, что на тактической доске.
+    Без них подписывается id трека."""
     import cv2
 
     out = frame.copy()
@@ -26,7 +39,9 @@ def draw(frame: np.ndarray, obs: TargetObservation, tracks: Optional[list[Track]
                 continue
             x1, y1, x2, y2 = [int(v) for v in t.box]
             cv2.rectangle(out, (x1, y1), (x2, y2), COLOR_OTHER, 1)
-            cv2.putText(out, str(t.track_id), (x1, max(y1 - 4, 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, COLOR_OTHER, 1)
+            num = numbers.get(t.track_id) if numbers is not None else t.track_id
+            if num is not None:
+                _label(out, str(num), x1, y1 - 2, (255, 255, 255))
     if obs.state == TargetState.LOST:
         for c in obs.candidates:
             if c.rejected:
@@ -40,8 +55,8 @@ def draw(frame: np.ndarray, obs: TargetObservation, tracks: Optional[list[Track]
         color = COLOR_CONTESTED if obs.state == TargetState.CONTESTED else COLOR_ACTIVE
         x1, y1, x2, y2 = [int(v) for v in obs.box]
         cv2.rectangle(out, (x1, y1), (x2, y2), color, thickness + 1)
-        cv2.putText(out, f"TARGET #{obs.track_id} {obs.confidence:.2f}", (x1, max(y1 - 8, 14)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        num = numbers.get(obs.track_id) if numbers is not None else obs.track_id
+        _label(out, f"{num if num is not None else ''} TARGET".strip(), x1, y1 - 3, color, 0.55)
         cv2.putText(out, obs.state.value.upper(), (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
     if obs.event:
         cv2.putText(out, obs.event, (12, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)

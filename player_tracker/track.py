@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracker import export  # noqa: E402
 from tracker.metrics import evaluate, load_truth  # noqa: E402
-from tracker.appearance import CompositeEncoder, PartColorEncoder  # noqa: E402
+from tracker.appearance import CompositeEncoder, PartColorEncoder, default_color_encoder  # noqa: E402
 from tracker.pipeline import InitSpec, Pipeline, PipelineConfig  # noqa: E402
 from tracker.render import draw  # noqa: E402
 from tracker.video import FrameSource, FrameWriter, probe  # noqa: E402
@@ -44,7 +44,7 @@ def parse_floats(s: str, n: int) -> tuple[float, ...]:
 
 def build_encoder(kind: str):
     if kind == "color":
-        return PartColorEncoder()
+        return default_color_encoder()
     if kind == "osnet":
         from tracker.appearance import TorchReidEncoder
 
@@ -101,9 +101,10 @@ def main(argv=None) -> int:
     ap.add_argument("--start-sec", type=float, default=0.0)
     ap.add_argument("--max-frames", type=int)
     ap.add_argument("--width", type=int, default=1280, help="ширина кадра обработки (0 — исходная)")
-    ap.add_argument("--weights", default="yolov8n.pt", help="веса YOLO (ultralytics)")
+    ap.add_argument("--weights", default="yolo11s.pt", help="веса YOLO (ultralytics): yolo11n быстрее, yolo11x точнее")
     ap.add_argument("--imgsz", type=int, default=1280)
-    ap.add_argument("--device", default=None, help="cpu | mps | cuda:0")
+    ap.add_argument("--device", default=None, help="cpu | mps | cuda:0 (по умолчанию: cuda, иначе mps, иначе cpu)")
+    ap.add_argument("--no-refine", action="store_true", help="не уточнять результат по всему ролику (только онлайн-решения)")
     ap.add_argument("--encoder", choices=["color", "osnet"], default="color")
     ap.add_argument("--ocr", choices=["none", "easyocr"], default="none")
     ap.add_argument("--no-team", action="store_true", help="не разделять по цвету формы")
@@ -140,13 +141,14 @@ def main(argv=None) -> int:
     from tracker.detection import YoloDetector
 
     detector = YoloDetector(args.weights, imgsz=args.imgsz, device=args.device)
-    cfg = PipelineConfig(init=init, use_team=not args.no_team, fps=source.fps, tolerate_errors=not args.strict)
+    cfg = PipelineConfig(init=init, use_team=not args.no_team, fps=source.fps, tolerate_errors=not args.strict,
+                         refine=not args.no_refine)
     pipe = Pipeline((source.width, source.height), detector, build_encoder(args.encoder), build_reader(args.ocr), cfg)
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     writer = None
-    if not args.no_video:
+    if not args.no_video and args.no_refine:
         writer = FrameWriter(out / "annotated.mp4", source.width, source.height, source.fps)
     records = []
     t_start = time.perf_counter()
@@ -170,6 +172,22 @@ def main(argv=None) -> int:
     finally:
         if writer is not None:
             writer.close()
+    final = pipe.final_observations()
+    if not args.no_refine:
+        records = [export.observation_to_dict(o, scale, source.fps) for o in final]
+        print("Уточнение по всему ролику:", ", ".join(f"{o.frame_idx}:{o.event}" for o in final if o.event))
+        if not args.no_video:
+            # рамки изменились после прогона — видео пишется вторым проходом по ролику
+            writer = FrameWriter(out / "annotated.mp4", source.width, source.height, source.fps)
+            try:
+                again = FrameSource(args.video, max_width=args.width or None, tonemap=tonemap,
+                                    start_sec=args.start_sec, max_frames=args.max_frames)
+                for i, frame in enumerate(again):
+                    if i >= len(final):
+                        break
+                    writer.write(draw(frame, final[i], pipe.tracks_at(i)))
+            finally:
+                writer.close()
 
     meta = {"video": str(args.video), "fps": source.fps, "frame_size": [info.width, info.height],
             "process_size": [source.width, source.height], "scale": scale, "init": vars(init),

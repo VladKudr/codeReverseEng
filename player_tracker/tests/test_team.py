@@ -30,3 +30,16 @@ def test_torso_color_from_synthetic_frame():
     assert lab is not None
     # красная футболка: канал a* высокий
     assert lab[1] > 170
+
+
+def test_many_bib_colours_make_classifier_silent():
+    """Тренировка с манишками четырёх цветов: два кластера ничего не объясняют — метки «неизвестно»."""
+    rng = np.random.default_rng(2)
+    clf = TeamClassifier(min_samples=40)
+    colours = [np.array(c, dtype=np.float32) for c in ([200, 160, 120], [150, 90, 170], [170, 170, 190], [120, 175, 150])]
+    for _ in range(30):
+        for c in colours:
+            clf.observe(c + rng.normal(0, 3, 3))
+    assert clf.fit()
+    assert not clf.reliable
+    assert clf.predict(colours[0]) == UNKNOWN

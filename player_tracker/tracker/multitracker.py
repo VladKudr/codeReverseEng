@@ -25,7 +25,7 @@ import numpy as np
 from .appearance import cosine_similarity, l2_normalize
 from .detection import Detection
 from .geometry import as_boxes, iou_matrix, xyah_to_xyxy, xyxy_to_xyah
-from .kalman import CHI2_95, KalmanBoxFilter
+from .kalman import CHI2_95, KalmanBoxFilter, sanitize_cov
 
 
 class TrackState(Enum):
@@ -129,6 +129,7 @@ class MultiTracker:
         if feat is not None:
             t.feature = l2_normalize(feat)
             t.last_feature = t.feature.copy()
+        t.extra["det_index"] = det.extra.get("index")
         self._next_id += 1
         return t
 
@@ -139,6 +140,7 @@ class MultiTracker:
         t.time_since_update = 0
         t.last_frame = frame_idx
         t.last_box = np.asarray(det.box, dtype=np.float64)
+        t.extra["det_index"] = det.extra.get("index")   # какой детекции кадра соответствует (цвет торса и т.п.)
         if feat is not None:
             f = l2_normalize(feat)
             t.last_feature = f
@@ -175,9 +177,33 @@ class MultiTracker:
         return cost
 
     # --- основной шаг ------------------------------------------------------
+    def apply_camera_motion(self, A: np.ndarray) -> None:
+        """Переносит состояния треков преобразованием камеры (предыдущий кадр -> текущий)."""
+        R = np.asarray(A, dtype=np.float64)[:, :2]
+        t = np.asarray(A, dtype=np.float64)[:, 2]
+        s = float(np.sqrt(abs(np.linalg.det(R))))
+        # преобразование всего состояния (cx, cy, a, h, vx, vy, va, vh): положение и скорость — поворотом и
+        # масштабом, рост и его скорость — масштабом, форма рамки — без изменений. Ковариация переносится той же
+        # матрицей целиком: поворот одного блока положения без перекрёстных членов делал её неположительно
+        # определённой при резком зуме (IMG_7462, масштаб 0.93 за кадр) и валил прогон в gating_distance.
+        T = np.eye(8)
+        T[0:2, 0:2] = R
+        T[4:6, 4:6] = R
+        T[3, 3] = T[7, 7] = s
+        for tr in self.tracks:
+            tr.mean = T @ tr.mean
+            tr.mean[:2] += t
+            tr.cov = sanitize_cov(T @ tr.cov @ T.T)
+            if tr.last_box is not None:
+                c = R @ np.array([(tr.last_box[0] + tr.last_box[2]) / 2, (tr.last_box[1] + tr.last_box[3]) / 2]) + t
+                hw, hh = (tr.last_box[2] - tr.last_box[0]) / 2 * s, (tr.last_box[3] - tr.last_box[1]) / 2 * s
+                tr.last_box = np.array([c[0] - hw, c[1] - hh, c[0] + hw, c[1] + hh])
+
     def update(self, detections: list[Detection], features: Optional[np.ndarray] = None,
-               frame_idx: Optional[int] = None) -> list[Track]:
-        """Обновляет треки детекциями кадра, возвращает активные (подтверждённые) треки."""
+               frame_idx: Optional[int] = None, camera: Optional[np.ndarray] = None) -> list[Track]:
+        """Обновляет треки детекциями кадра, возвращает активные (подтверждённые) треки.
+
+        camera — аффинное 2x3 «предыдущий кадр -> текущий» (компенсация движения камеры)."""
         self.frame_idx = self.frame_idx + 1 if frame_idx is None else frame_idx
         fi = self.frame_idx
         feats = None if features is None else np.asarray(features, dtype=np.float32)
@@ -186,6 +212,8 @@ class MultiTracker:
             t.mean, t.cov = self.kf.predict(t.mean, t.cov)
             t.age += 1
             t.time_since_update += 1
+        if camera is not None:
+            self.apply_camera_motion(camera)
 
         hi = [i for i, d in enumerate(detections) if d.score >= self.cfg.det_high]
         lo = [i for i, d in enumerate(detections) if self.cfg.det_low <= d.score < self.cfg.det_high]
@@ -240,6 +268,13 @@ class MultiTracker:
             alive.append(t)
         self.tracks = alive
         return [t for t in self.tracks if t.state == TrackState.CONFIRMED]
+
+    def spawn(self, det: Detection, feat: Optional[np.ndarray], frame_idx: int) -> Track:
+        """Подтверждённый трек из детекции вне общего порядка (ручной выбор игрока)."""
+        t = self._new_track(det, feat, frame_idx)
+        t.state = TrackState.CONFIRMED
+        self.tracks.append(t)
+        return t
 
     def get(self, track_id: int) -> Optional[Track]:
         for t in self.tracks:

@@ -117,3 +117,75 @@ def test_init_timeout_logged_or_raised():
     pipe = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg)
     with pytest.raises(RuntimeError):
         pipe.run(frames)
+
+
+def test_click_on_weakly_detected_player_locks_on_first_frame():
+    """Игрок в кадре выбора найден только слабой детекцией (ниже порога нового трека) и стоит вплотную к
+    соседу: цель берётся сразу, по детекции, центр которой ближе к клику, а не по соседней рамке."""
+    frames, script, _ = scenario(10)
+    script = {i: list(d) for i, d in script.items()}
+    target = (60, 100, 100, 220)
+    neighbour = (40, 100, 82, 225)                 # клик (80, 160) попадает и в край соседа
+    script[0] = [(*target, 0.3), (*neighbour, 0.35)] + script[0][1:]
+    cfg = PipelineConfig(init=InitSpec(frame=0, point=(80, 160)))
+    pipe = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg)
+    res = pipe.process(frames[0])
+    assert res.observation.state == TargetState.ACTIVE and res.observation.event == "locked"
+    assert np.allclose(res.observation.box, target, atol=1.0)
+
+
+def test_final_observations_refine_and_recount_metrics():
+    frames, script, truth = scenario()
+    cfg = PipelineConfig(init=InitSpec(frame=2, point=(80, 160)))
+    pipe = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg)
+    results = pipe.run(frames)
+    online = [r.observation for r in results]
+    final = pipe.final_observations()
+    assert len(final) == len(online)
+    first_online = next(o.frame_idx for o in online if o.event == "reacquired")
+    first_final = next(o.frame_idx for o in final if o.event == "reacquired")
+    assert first_final <= first_online      # уточнение не может захватить позже автомата
+    s = pipe.metrics.summary()
+    tracked = sum(o.state in (TargetState.ACTIVE, TargetState.CONTESTED) for o in final)
+    assert s["target"]["tracked_frames"] == tracked
+    assert len(pipe.tracks_at(0)) == len(results[0].tracks)
+    cfg_off = PipelineConfig(init=InitSpec(frame=2, point=(80, 160)), refine=False)
+    pipe_off = Pipeline((W, H), ScriptedDetector(script), PartColorEncoder(), None, cfg_off)
+    online_off = [r.observation for r in pipe_off.run(frames)]
+    assert [o.state for o in pipe_off.final_observations()] == [o.state for o in online_off]
+
+
+def test_replay_from_saved_inputs_matches_and_applies_correction(tmp_path):
+    """Сохранённые данные кадров дают тот же результат без детектора; поправка «цель — одноклубник» с кадра 30
+    переводит слежение на него, кадры до поправки не меняются."""
+    from tracker.pipeline import Correction, load_inputs, save_inputs
+
+    frames, script, _ = scenario(60)
+    enc = PartColorEncoder()
+    cfg = PipelineConfig(init=InitSpec(frame=2, point=(80, 160)), record_inputs=True)
+    pipe = Pipeline((W, H), ScriptedDetector(script), enc, None, cfg)
+    pipe.run(frames)
+    base = pipe.final_observations()
+    save_inputs(tmp_path / "inputs.npz", pipe.inputs, enc.dim)
+    inputs = load_inputs(tmp_path / "inputs.npz")
+    assert len(inputs) == 60
+
+    replay = Pipeline((W, H), None, enc, None, PipelineConfig(init=InitSpec(frame=2, point=(80, 160))))
+    for x in inputs:
+        replay.process_inputs(x)
+    again = replay.final_observations()
+    assert [o.state for o in again] == [o.state for o in base]
+    assert all(o.box is None and p.box is None or np.allclose(o.box, p.box) for o, p in zip(again, base))
+
+    mate = script[30][-2][:4]                   # одноклубник на кадре 30
+    point = ((mate[0] + mate[2]) / 2, (mate[1] + mate[3]) / 2)
+    fixed = Pipeline((W, H), None, enc, None, PipelineConfig(init=InitSpec(frame=2, point=(80, 160)),
+                                                           corrections=[Correction(30, point=point)]))
+    for x in load_inputs(tmp_path / "inputs.npz"):
+        fixed.process_inputs(x)
+    out = fixed.final_observations()
+    assert [o.state for o in out[:30]] == [o.state for o in base[:30]]
+    assert out[30].event == "corrected"
+    for f in range(30, 40):
+        mb = script[f][-2][:4]
+        assert out[f].box is not None and abs((out[f].box[0] + out[f].box[2]) / 2 - (mb[0] + mb[2]) / 2) < 15

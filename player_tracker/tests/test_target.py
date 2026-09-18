@@ -85,7 +85,8 @@ def test_ambiguous_when_two_lookalikes_and_no_number(rng):
         obs = f.step(i, [a, b], {7: a.last_feature, 8: b.last_feature})
         ambiguous += obs.ambiguous
         assert obs.track_id is None
-    assert ambiguous > 20
+    # первые кадры кандидаты копят чистые наблюдения внешности — решения (и неоднозначности) ещё нет
+    assert ambiguous > 15
 
 
 def test_number_breaks_the_tie(rng):
@@ -204,3 +205,96 @@ def test_manual_release_and_events(rng):
     f.release(fi, "released_manual")
     assert f.state == TargetState.LOST
     assert [e for _, e in f.events] == ["locked", "released_manual"]
+
+
+def test_neighbour_lookalike_is_never_captured(rng):
+    """Одноклубник с почти тем же дескриптором долго стоял рядом с целью (не перекрываясь): когда цель
+    скрылась, он — известный «сосед» и не захватывается, даже оставшись единственным кандидатом."""
+    f = TargetFollower((W, H))
+    target_vec, _ = base_vectors(rng)
+    twin = unit(target_vec + rng.normal(0, 0.02, DIM).astype(np.float32))
+    for i in range(60):
+        t1 = make_track(1, walk(300, 200, 1, 0, i), feature_family(target_vec, rng, 0.05), i)
+        t2 = make_track(2, walk(420, 200, 1, 0, i), feature_family(twin, rng, 0.05), i)
+        t3 = make_track(3, walk(900, 300, 0, 0, i), feature_family(unit(rng.normal(size=DIM)), rng, 0.05), i)
+        if i == 0:
+            f.lock(t1, t1.last_feature, 0)
+            continue
+        f.step(i, [t1, t2, t3], {1: t1.last_feature, 2: t2.last_feature, 3: t3.last_feature})
+    assert f.coexist[2] >= f.cfg.coexist_min_frames
+    for i in range(60, 120):
+        t2 = make_track(2, walk(420, 200, 1, 0, i), feature_family(twin, rng, 0.05), i)
+        obs = f.step(i, [t2], {2: t2.last_feature})
+        assert obs.track_id is None
+    assert any(c.rejected == "neighbour" for c in obs.candidates)
+
+
+def test_target_hidden_mid_frame_does_not_teleport(rng):
+    """Цель скрылась посреди кадра (не за краем). Похожий игрок далеко на другом краю поля
+    не захватывается; когда цель выходит там же, где скрылась, — захватывается."""
+    f = TargetFollower((W, H))
+    target_vec, mate_vec = base_vectors(rng)
+    fi = warmup(f, rng, target_vec, mate_vec)
+    last_x = 300 + 3 * (fi - 1)
+    far_hits = []
+    for i in range(fi, fi + 30):
+        far = make_track(6, walk(1150, 500, 0, 0, 0, w=40, h=100), feature_family(target_vec, rng, 0.05), i)
+        mate = make_track(2, walk(800, 300, -2, 0, i), feature_family(mate_vec, rng, 0.05), i)
+        obs = f.step(i, [far, mate], {6: far.last_feature, 2: mate.last_feature})
+        far_hits.append(obs.track_id)
+    assert all(tid is None for tid in far_hits)
+    got = None
+    for i in range(fi + 30, fi + 60):
+        back = make_track(8, walk(last_x + 10, 200, 0, 0, 0), feature_family(target_vec, rng, 0.05), i)
+        mate = make_track(2, walk(800, 300, -2, 0, i), feature_family(mate_vec, rng, 0.05), i)
+        obs = f.step(i, [back, mate], {8: back.last_feature, 2: mate.last_feature})
+        if obs.event == "reacquired":
+            got = obs.track_id
+            break
+    assert got == 8
+
+
+def test_team_votes_of_previous_track_owner_are_forgotten(rng):
+    """Id мультитрекера перешёл от игрока другой команды к цели: старые голоса за команду трека
+    не должны вечно отвергать его — решают последние кадры."""
+    f = TargetFollower((W, H))
+    target_vec, mate_vec = base_vectors(rng)
+    fi = warmup(f, rng, target_vec, mate_vec)
+    for i in range(fi, fi + 10):
+        t1 = make_track(1, walk(300, 200, 3, 0, i), feature_family(target_vec, rng, 0.05), i)
+        f.step(i, [t1], {1: t1.last_feature}, team_labels={1: 0})
+    for i in range(40):                       # трек 5 долго был игроком команды 1
+        f.track_teams[5].append(1)
+    for i in range(f.cfg.team_window):       # ...а теперь на нём цель (команда 0)
+        f.track_teams[5].append(0)
+    assert f._track_team(5) == 0
+
+
+def test_correction_beats_learned_team_and_survives_dropout(rng):
+    """Регрессия (реальный ролик): модель выучила «команда 0», оператор указывает цель на треке, у которого голоса
+    «команда 1», а на следующем кадре детекция пропадает. Раньше автомат тут же отпускал трек по команде и, очистив
+    банк соседей, больше не мог выбрать между похожими. Теперь указанный трек держится и подхватывается снова."""
+    f = TargetFollower((W, H))
+    target_vec, mate_vec = base_vectors(rng)
+    fi = warmup(f, rng, target_vec, mate_vec)
+    for i in range(fi, fi + 10):
+        t1 = make_track(1, walk(300, 200, 3, 0, i), feature_family(target_vec, rng, 0.05), i)
+        t2 = make_track(2, walk(800, 300, -2, 0, i), feature_family(mate_vec, rng, 0.05), i)
+        f.step(i, [t1, t2], {1: t1.last_feature, 2: t2.last_feature}, team_labels={1: 0, 2: 0})
+    assert f.model.team == 0
+    negatives_before = f.model.n_negatives()
+    fc = fi + 10
+    for _ in range(10):
+        f.track_teams[5].append(1)
+    t5 = make_track(5, walk(600, 220, 0, 0, 0), feature_family(target_vec, rng, 0.2), fc)
+    obs = f.correct(t5, t5.last_feature, fc)
+    assert obs.event == "corrected" and f.model.n_negatives() >= negatives_before - 12   # банк соседей не стёрт
+    obs = f.step(fc, [t5], {5: t5.last_feature}, team_labels={5: 1})
+    assert obs.track_id == 5, obs.event
+    # следующий кадр: детекция пропала, потом трек вернулся — подхват без проверок и ожидания
+    gone = make_track(5, walk(600, 220, 0, 0, 0), None, fc + 1, detected=False)
+    assert f.step(fc + 1, [gone], {}).state == TargetState.LOST
+    back = make_track(5, walk(605, 220, 0, 0, 0), feature_family(target_vec, rng, 0.2), fc + 2)
+    twin = make_track(9, walk(900, 220, 0, 0, 0), feature_family(target_vec, rng, 0.05), fc + 2)
+    obs = f.step(fc + 2, [back, twin], {5: back.last_feature, 9: twin.last_feature}, team_labels={5: 1, 9: 0})
+    assert obs.track_id == 5 and obs.event == "reacquired"

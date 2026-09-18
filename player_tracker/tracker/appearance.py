@@ -7,6 +7,10 @@
 Две реализации одного протокола `encode(frame, boxes) -> (N, dim)`:
   * `PartColorEncoder` — полосовые HSV-гистограммы с весами по частям тела;
     без нейросетей, работает на CPU в реальном времени. Базовый вариант.
+  * `ThumbnailEncoder` — миниатюра фигуры в Lab (8x24) без среднего цвета:
+    пространственная раскладка (рукава, шорты, волосы) — то, чего нет в
+    гистограммах; различает одноклубников в одинаковых манишках;
+  * `default_color_encoder()` — гистограммы полос + миниатюра (по умолчанию);
   * `TorchReidEncoder` — OSNet из пакета `torchreid` (опционально): устойчивее
     к позе и освещению; при наличии — предпочтителен.
   * `CompositeEncoder` — конкатенация нескольких дескрипторов с весами.
@@ -129,6 +133,45 @@ class PartColorEncoder:
                 parts.append(l2_normalize(hist) * st.weight)
             out[i] = np.concatenate(parts)
         return l2_normalize(out)
+
+
+class ThumbnailEncoder:
+    """Миниатюра фигуры в Lab с вычтенным средним цветом.
+
+    Гистограмма не знает, где цвет: розовая манишка поверх чёрных рукавов и
+    розовая манишка поверх белых дают почти одинаковые распределения.
+    Уменьшенная до 8x24 фигура сохраняет раскладку цветов по телу, а
+    вычитание среднего убирает общий сдвиг освещения."""
+
+    def __init__(self, width: int = 8, height: int = 24, side_trim: float = 0.1, lightness_weight: float = 0.5):
+        self.w, self.h = width, height
+        self.side_trim = side_trim
+        self.lightness_weight = lightness_weight
+        self.dim = width * height * 3
+
+    def encode(self, frame: np.ndarray, boxes) -> np.ndarray:
+        import cv2
+
+        boxes = as_boxes(boxes)
+        H, W = frame.shape[:2]
+        out = np.zeros((len(boxes), self.dim), dtype=np.float32)
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            pad = self.side_trim * (x2 - x1)
+            xa, xb = int(max(0, x1 + pad)), int(min(W, x2 - pad))
+            ya, yb = int(max(0, y1)), int(min(H, y2))
+            if xb - xa < 2 or yb - ya < 2:
+                continue
+            thumb = cv2.resize(frame[ya:yb, xa:xb], (self.w, self.h), interpolation=cv2.INTER_AREA)
+            lab = cv2.cvtColor(thumb, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
+            lab -= lab.mean(axis=0)
+            lab[:, 0] *= self.lightness_weight
+            out[i] = lab.reshape(-1)
+        return l2_normalize(out)
+
+
+def default_color_encoder() -> "CompositeEncoder":
+    """Дескриптор без нейросетей по умолчанию: гистограммы полос тела + миниатюра фигуры."""
+    return CompositeEncoder([(PartColorEncoder(), 1.0), (ThumbnailEncoder(), 1.0)])
 
 
 class TorchReidEncoder:

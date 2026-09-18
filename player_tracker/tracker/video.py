@@ -314,7 +314,8 @@ class FrameWriter:
     или без libx264 — откат на OpenCV с предупреждением.
     """
 
-    def __init__(self, path: str | Path, width: int, height: int, fps: float, crf: int = 23, preset: str = "veryfast"):
+    def __init__(self, path: str | Path, width: int, height: int, fps: float, crf: int = 23, preset: str = "veryfast",
+                 gop: Optional[int] = None):
         self.path = Path(path)
         self.width, self.height, self.fps = int(width), int(height), float(fps) or 30.0
         self.frames = 0
@@ -325,6 +326,7 @@ class FrameWriter:
             cmd = [exe, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
                    "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{self.width}x{self.height}", "-r", f"{self.fps:.6f}",
                    "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
+                   *(["-g", str(gop)] if gop else []),
                    "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(self.path)]
             try:
                 self._proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -377,3 +379,30 @@ def extract_frame(path: str | Path, at_sec: float = 0.0, max_width: Optional[int
     for frame in src:
         return frame, src.scale
     raise RuntimeError(f"Кадр в момент {at_sec:.2f}s не прочитан: {path}")
+
+
+def read_frame_at(path: str | Path, index: int, fps: float, width: int, height: int) -> np.ndarray:
+    """Кадр `index` ролика, записанного `FrameWriter` (постоянная частота, точные метки времени).
+
+    У исходников iPhone метки кадров неравномерны, и номер кадра обработки по времени не находится;
+    поэтому поправки работают по копии обработанных кадров, где кадр n стоит ровно на n/fps."""
+    exe = ffmpeg_exe()
+    if exe is None:
+        import cv2
+
+        cap = cv2.VideoCapture(str(path))
+        cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+        ok, frame = cap.read()
+        cap.release()
+        if not ok:
+            raise RuntimeError(f"кадр {index} не прочитан: {path}")
+        return frame
+    # в ролике FrameWriter поиск по времени n/fps попадает на кадр n+1 (проверено на всех кадрах) — берём середину
+    # промежутка перед ним
+    t = max(index - 0.5, 0.0) / fps
+    cmd = [exe, "-hide_banner", "-loglevel", "error", "-nostdin", "-ss", f"{t:.6f}", "-i", str(path),
+           "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "bgr24", "-an", "pipe:1"]
+    out = subprocess.run(cmd, capture_output=True, check=False).stdout
+    if len(out) < width * height * 3:
+        raise RuntimeError(f"кадр {index} не прочитан: {path}")
+    return np.frombuffer(out[: width * height * 3], dtype=np.uint8).reshape(height, width, 3).copy()

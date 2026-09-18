@@ -11,6 +11,7 @@ ultralytics               # YOLOv8/11; тянет torch. На Mac: pip install t
 fastapi
 uvicorn
 python-multipart
+httpx                     # ИИ-разбор (DeepSeek API); ключ — DEEPSEEK_API_KEY или data/secrets.json
 
 # Необязательно
 # torchreid               # нейросетевой ReID (--encoder osnet): точнее цветовых гистограмм
@@ -18,4 +19,3 @@ python-multipart
 
 # Тесты
 pytest
-httpx                     # TestClient для тестов веб-приложения

@@ -300,37 +300,63 @@ class RunMetrics:
 
 # --- оценка по разметке -------------------------------------------------------------------
 
-def load_truth(path: str | Path) -> dict[int, Optional[list[float]]]:
-    """Разметка цели: JSON {"frames": {"12": [x1,y1,x2,y2] | null, ...}} или {"12": [...]}
-    либо CSV `frame,x1,y1,x2,y2` (пустые координаты — цели в кадре нет). Координаты исходного кадра."""
+def load_truth(path: str | Path) -> dict[int, object]:
+    """Разметка цели в координатах исходного кадра.
+
+    JSON: {"frames": {"12": [x1,y1,x2,y2] | null, ...},
+           "partial": {"40": [x1,y1,x2,y2], ...},   # цель частично закрыта в группе игроков, рамка приблизительная
+           "hidden": [139, 140, ...]}                # цель в кадре, но полностью закрыта другими
+    (или просто {"12": [...]}), либо CSV `frame,x1,y1,x2,y2[,state]` — пустые координаты: цели нет,
+    state = partial | hidden.
+
+    Значение по кадру: список — цель видна; None — цели нет; {"state": "partial", "box": [...]} или
+    {"state": "hidden"}."""
     p = Path(path)
-    truth: dict[int, Optional[list[float]]] = {}
+    truth: dict[int, object] = {}
     if p.suffix.lower() == ".csv":
         import csv
 
         with open(p, encoding="utf-8") as fh:
             for row in csv.DictReader(fh):
                 vals = [row.get(k, "") for k in ("x1", "y1", "x2", "y2")]
-                truth[int(row["frame"])] = None if any(v == "" for v in vals) else [float(v) for v in vals]
+                box = None if any(v == "" for v in vals) else [float(v) for v in vals]
+                state = (row.get("state") or "").strip()
+                if state == "hidden":
+                    truth[int(row["frame"])] = {"state": "hidden"}
+                elif state == "partial":
+                    truth[int(row["frame"])] = {"state": "partial", "box": box}
+                else:
+                    truth[int(row["frame"])] = box
         return truth
     data = json.loads(p.read_text(encoding="utf-8"))
     frames = data.get("frames", data) if isinstance(data, dict) else {}
     for k, v in frames.items():
         truth[int(k)] = None if v is None else [float(x) for x in v]
+    if isinstance(data, dict):
+        for k, v in (data.get("partial") or {}).items():
+            truth[int(k)] = {"state": "partial", "box": [float(x) for x in v]}
+        hidden = data.get("hidden") or []
+        for k in (hidden.keys() if isinstance(hidden, dict) else hidden):
+            truth[int(k)] = {"state": "hidden"}
     return truth
 
 
-def evaluate(records: list[dict], truth: dict[int, Optional[list[float]]], errors: Optional[ErrorLog] = None,
-             iou_thr: float = 0.5) -> dict:
+def evaluate(records: list[dict], truth: dict[int, object], errors: Optional[ErrorLog] = None,
+             iou_thr: float = 0.5, partial_iou_thr: float = 0.3) -> dict:
     """Сравнение выхода (`export.observation_to_dict`, координаты исходного кадра) с разметкой.
 
     На каждом размеченном кадре:
-      TP — цель отслежена и IoU >= порога; FP (wrong_target) — отслежена, но рамка не на цели;
-      FN (missed_target) — цель в кадре, а слежение в LOST/IDLE; TN — цели нет и слежения нет;
-      false_track — цели нет в кадре, а мы за кем-то следим.
-    Переключение личности — смена track_id между двумя TP-кадрами с FP между ними или без.
+      цель видна — TP: отслежена и IoU >= порога; FP (wrong_target): рамка не на цели;
+        FN (missed_target): слежение в LOST/IDLE;
+      цели нет — TN: слежения нет; false_track: следим за кем-то;
+      цель частично закрыта (partial) — верно, если слежение честно потеряно или рамка на цели
+        с IoU >= partial_iou_thr (рамка разметки приблизительная);
+      цель полностью закрыта (hidden) — верно только «потеряна»: любая рамка — на другом игроке.
+    accuracy — доля верных кадров среди размеченных («точность позиционирования»).
+    Переключение личности — смена track_id между двумя TP-кадрами.
     """
     tp = fp = fn = tn = false_track = 0
+    partial_ok = partial_wrong = hidden_ok = hidden_wrong = 0
     ious: list[float] = []
     switches = 0
     last_ok_id: Optional[int] = None
@@ -341,6 +367,25 @@ def evaluate(records: list[dict], truth: dict[int, Optional[list[float]]], error
             continue
         gt = truth[frame]
         tracked = r["state"] in ("active", "contested") and r["box"] is not None
+        if isinstance(gt, dict):
+            if gt.get("state") == "hidden":
+                if tracked:
+                    hidden_wrong += 1
+                    if errors:
+                        errors.add(frame, "wrong_target", "цель закрыта другими игроками, а рамка на ком-то",
+                                   track_id=r["track_id"], box=r["box"])
+                else:
+                    hidden_ok += 1
+            else:
+                box = gt.get("box")
+                if not tracked or (box is not None and iou_pair(r["box"], box) >= partial_iou_thr):
+                    partial_ok += 1
+                else:
+                    partial_wrong += 1
+                    if errors:
+                        errors.add(frame, "wrong_target", "цель частично закрыта, рамка не на ней",
+                                   track_id=r["track_id"], box=r["box"], truth=box)
+            continue
         if gt is None:
             if tracked:
                 false_track += 1
@@ -367,15 +412,24 @@ def evaluate(records: list[dict], truth: dict[int, Optional[list[float]]], error
             if errors:
                 errors.add(frame, "wrong_target", f"IoU {iou:.2f} с разметкой", track_id=r["track_id"],
                            box=r["box"], truth=gt)
-    evaluated = tp + fp + fn + tn + false_track
+    occluded = partial_ok + partial_wrong + hidden_ok + hidden_wrong
+    evaluated = tp + fp + fn + tn + false_track + occluded
     present = tp + fp + fn
-    return {
+    correct = tp + tn + partial_ok + hidden_ok
+    out = {
         "frames_evaluated": evaluated,
+        "accuracy": round(correct / evaluated, 4) if evaluated else None,
+        "errors": evaluated - correct,
         "frames_with_target": present,
         "tp": tp, "wrong_target": fp, "missed_target": fn, "true_absent": tn, "false_track": false_track,
         "recall": round(tp / present, 3) if present else None,
-        "precision": round(tp / (tp + fp + false_track), 3) if (tp + fp + false_track) else None,
+        "precision": round(tp / (tp + fp + false_track + hidden_wrong + partial_wrong), 3)
+        if (tp + fp + false_track + hidden_wrong + partial_wrong) else None,
         "iou_mean": round(statistics.fmean(ious), 3) if ious else None,
         "id_switches": switches,
         "mota": round(1 - (fn + fp + false_track + switches) / present, 3) if present else None,
     }
+    if occluded:
+        out.update({"partial_ok": partial_ok, "partial_wrong": partial_wrong,
+                    "hidden_ok": hidden_ok, "hidden_wrong": hidden_wrong})
+    return out

@@ -37,7 +37,8 @@ class TeamClassifier:
     """Двухкластерная модель цветов формы.
 
     Копит цвета торсов (`observe`), после `min_samples` строит центры
-    (`fit`). `predict` возвращает 0/1 (команды), 2 — прочие (далеко от обоих
+    (`fit`) и проверяет, что выборка действительно делится на две формы
+    (мало «прочих», центры далеко); иначе `predict` отвечает «неизвестно». `predict` возвращает 0/1 (команды), 2 — прочие (далеко от обоих
     центров), -1 — модель ещё не обучена. Порог «прочих» — кратный
     внутрикластерному разбросу, поэтому не зависит от конкретных цветов.
     """
@@ -46,9 +47,12 @@ class TeamClassifier:
     max_samples: int = 2000
     outlier_factor: float = 2.5
     min_outlier_dist: float = 18.0
+    max_outlier_share: float = 0.2      # больше «прочих» — формы не делятся на две команды
+    min_separation: float = 3.0         # центры ближе (в разбросах) — кластеры не различимы
     samples: list[np.ndarray] = field(default_factory=list)
     centers: Optional[np.ndarray] = None
     spread: float = 0.0
+    reliable: bool = False
 
     def observe(self, color: Optional[np.ndarray]) -> None:
         if color is None:
@@ -70,10 +74,16 @@ class TeamClassifier:
         d = np.linalg.norm(data - centers[labels], axis=1)
         self.centers = centers
         self.spread = float(np.median(d) + 1e-6)
+        # тренировка с манишками трёх-четырёх цветов, одна команда в разных формах и т.п.:
+        # два кластера ничего не объясняют — модель молчит, чем ошибочно отсекает цель
+        thr = max(self.outlier_factor * self.spread, self.min_outlier_dist)
+        outliers = float(np.mean(d > thr))
+        separation = float(np.linalg.norm(centers[0] - centers[1])) / self.spread
+        self.reliable = outliers <= self.max_outlier_share and separation >= self.min_separation
         return True
 
     def predict(self, color: Optional[np.ndarray]) -> int:
-        if color is None or self.centers is None:
+        if color is None or self.centers is None or not self.reliable:
             return UNKNOWN
         d = np.linalg.norm(self.centers - np.asarray(color, dtype=np.float32), axis=1)
         k = int(np.argmin(d))

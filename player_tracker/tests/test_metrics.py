@@ -133,3 +133,40 @@ def test_pipeline_metrics_and_truth_end_to_end(tmp_path):
     ev = evaluate(records, {f: (list(b) if b else None) for f, b in truth.items()}, pipe.errors)
     assert ev["recall"] > 0.8 and ev["wrong_target"] == 0 and ev["false_track"] == 0
     assert ev["missed_target"] < 40   # кадры между возвращением и подтверждением захвата
+
+
+def test_evaluate_partial_and_hidden_frames(tmp_path):
+    truth_path = tmp_path / "truth.json"
+    truth_path.write_text(json.dumps({
+        "frames": {"0": [0, 0, 10, 20], "1": [0, 0, 10, 20], "2": None},
+        "partial": {"3": [0, 0, 10, 20], "4": [0, 0, 10, 20]},
+        "hidden": [5, 6],
+    }))
+    truth = load_truth(truth_path)
+    assert truth[3] == {"state": "partial", "box": [0, 0, 10, 20]} and truth[5] == {"state": "hidden"}
+
+    def rec(frame, box, state="active"):
+        return {"frame": frame, "state": state, "track_id": 1 if box else None, "box": box, "candidates": []}
+
+    records = [
+        rec(0, [0, 0, 10, 20]),            # TP
+        rec(1, None, "lost"),              # пропуск
+        rec(2, None, "lost"),              # цели нет — верно
+        rec(3, None, "lost"),              # частично закрыта, честно потеряна — верно
+        rec(4, [30, 0, 40, 20]),           # частично закрыта, рамка на другом — ошибка
+        rec(5, None, "lost"),              # закрыта — верно
+        rec(6, [0, 0, 10, 20]),            # закрыта, а рамка есть — ошибка
+    ]
+    log = ErrorLog(30.0)
+    ev = evaluate(records, truth, log)
+    assert ev["frames_evaluated"] == 7 and ev["errors"] == 3
+    assert ev["accuracy"] == round(4 / 7, 4)
+    assert (ev["partial_ok"], ev["partial_wrong"], ev["hidden_ok"], ev["hidden_wrong"]) == (1, 1, 1, 1)
+    assert log.counts()["wrong_target"] == 2 and log.counts()["missed_target"] == 1
+
+
+def test_load_truth_csv_with_state(tmp_path):
+    p = tmp_path / "t.csv"
+    p.write_text("frame,x1,y1,x2,y2,state\n0,0,0,10,10,\n1,,,,,hidden\n2,1,1,5,5,partial\n")
+    t = load_truth(p)
+    assert t == {0: [0, 0, 10, 10], 1: {"state": "hidden"}, 2: {"state": "partial", "box": [1, 1, 5, 5]}}
